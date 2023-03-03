@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="hint">Type your text here</string>
+    <string name="permission_denied">Permission is denied\nPlease goto app settings and enable permissions.</string>
 </resources>

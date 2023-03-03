@@ -1,0 +1,13 @@
+<resources>
+    <dimen name="spacing_00">2dp</dimen>
+    <dimen name="spacing_10">4dp</dimen>
+    <dimen name="spacing_20">8dp</dimen>
+    <dimen name="spacing_30">12dp</dimen>
+    <dimen name="spacing_40">16dp</dimen>
+    <dimen name="spacing_50">20dp</dimen>
+    <dimen name="spacing_60">24dp</dimen>
+    <dimen name="spacing_70">32dp</dimen>
+    <dimen name="spacing_80">40dp</dimen>
+    <dimen name="spacing_90">48dp</dimen>
+    <dimen name="spacing_100">56dp</dimen>
+</resources>
