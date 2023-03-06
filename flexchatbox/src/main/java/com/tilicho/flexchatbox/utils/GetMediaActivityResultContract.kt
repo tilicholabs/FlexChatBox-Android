@@ -8,8 +8,9 @@ class GetMediaActivityResultContract : ActivityResultContracts.GetMultipleConten
 
     override fun createIntent(context: Context, input: String): Intent {
         return super.createIntent(context, input).apply {
-            // Force only images and videos to be selectable
+            // To select multiple images and videos
             putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+            // Force only images and videos to be selectable
             putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("image/*", "video/*"))
         }
     }
