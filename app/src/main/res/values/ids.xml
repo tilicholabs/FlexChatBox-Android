@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <item name="map_layout" type="id" />
+    <item name="map" type="id" />
+    <item name="map_view" type="id" />
+</resources>

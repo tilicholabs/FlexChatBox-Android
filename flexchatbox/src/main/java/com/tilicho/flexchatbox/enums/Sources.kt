@@ -4,5 +4,6 @@ enum class Sources {
     CAMERA,
     GALLERY,
     VOICE,
-    LOCATION
+    LOCATION,
+    CONTACTS
 }
