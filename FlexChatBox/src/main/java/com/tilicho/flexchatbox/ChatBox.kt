@@ -7,6 +7,7 @@ import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.view.MotionEvent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -15,6 +16,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,9 +27,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Button
 import androidx.compose.material.Divider
@@ -47,10 +51,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.consumeAllChanges
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.pointerInteropFilter
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
@@ -77,6 +84,7 @@ import java.io.File
 import kotlin.math.roundToInt
 import kotlin.time.Duration.Companion.seconds
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun ChatBox(
     context: Context,
@@ -98,7 +106,9 @@ fun ChatBox(
     val recorder by lazy {
         AndroidAudioRecorder(context)
     }
-    var audioFile: File? = null
+     /*by remember {
+        mutableStateOf<File?>(null)
+    }*/
 
     var isPressed by remember {
         mutableStateOf(false)
@@ -170,8 +180,10 @@ fun ChatBox(
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         if (isRecording) {
+            Log.d("dragging 1", "$isRecording")
             AudioRecordingUi()
         } else {
+            Log.d("dragging 1", "$isRecording")
             TextField(
                 value = textFieldValue,
                 onValueChange = {
@@ -265,109 +277,102 @@ fun ChatBox(
                         if (isDeniedPermission) {
                             iconState = Color(0xffEBEEF1)
                         }
-
                         var offsetX by remember { mutableStateOf(0f) }
                         var offsetY by remember { mutableStateOf(0f) }
+
+                        var pressedX = 0F
+                        var pressedY = 0F
+                        var audioFile: File? = null
                         Box(
                             contentAlignment = Alignment.Center,
-                            /*modifier = Modifier
-                                .offset {
-                                    IntOffset(
-                                        offsetX.roundToInt(),
-                                        offsetY.roundToInt()
-                                    )
-                                }
-                                .pointerInput(Unit) {
-                                    detectDragGestures() { change, dragAmount ->
-                                        change.consume()
-                                        val (x, y) = dragAmount
-                                        when {
-                                            x < 0 -> {
-                                                recorder.stop()
-                                            }
-                                        }
-                                    }
-                                }*/
                         ) {
                             Icon(
                                 imageVector = ImageVector.vectorResource(R.drawable.ic_mic),
                                 contentDescription = null,
                                 modifier = Modifier
-                                    .offset {
-                                        IntOffset(
-                                            offsetX.roundToInt(),
-                                            offsetY.roundToInt()
-                                        )
-                                    }
                                     .padding(dimensionResource(id = R.dimen.spacing_20))
-                                    .pointerInput(Unit) {
-                                        detectTapGestures(onLongPress = {
-                                            when {
-                                                offsetX < it.x -> {
-                                                    Log.d("x_1", it.x.toString())
-                                                    Log.d("x_2", it.y.toString())
-                                                }
-                                                offsetX > it.y -> {
-
+                                    .pointerInteropFilter { motionEvent ->
+                                        when (motionEvent.action) {
+                                            MotionEvent.ACTION_UP -> {
+                                                Log.d("drag end", audioFile?.path ?: "empty")
+                                                try {
+                                                    isPressed = false
+                                                    Log.d(
+                                                        "dragging",
+                                                        "record: $isRecording pressed: $isPressed"
+                                                    )
+                                                    if (isRecording) {
+                                                        recorder.stop()
+                                                        Log.d(
+                                                            "drag end1",
+                                                            audioFile?.path ?: "empty"
+                                                        )
+                                                        try {
+                                                            Handler(Looper.getMainLooper()).postDelayed(
+                                                                {
+                                                                    audioFile?.let { it1 ->
+                                                                        recordedAudio.invoke(
+                                                                            it1
+                                                                        )
+                                                                    }
+                                                                },100
+                                                            )
+                                                        } catch (e: Exception) {
+                                                            Log.d("dragging 3", "$e")
+                                                        }
+                                                    }
+                                                    isRecording = false
+                                                    Log.d("dragging 2", "$isRecording")
+                                                } catch (_: Exception) {
+                                                    // do nothing
                                                 }
                                             }
-
-                                        },
-                                            onPress = {
+                                            MotionEvent.ACTION_DOWN -> {
                                                 isPressed = true
                                                 if (checkPermission(
                                                         context, Manifest.permission.RECORD_AUDIO
                                                     )
                                                 ) {
-                                                    try {
-                                                        File(context.cacheDir, "audio.mp3").also {
-                                                            Handler(Looper.getMainLooper()).postDelayed(
-                                                                {
-                                                                    if (isPressed) {
-                                                                        recorder.start(it)
-                                                                        isRecording = true
-                                                                    }
-                                                                },
-                                                                200
-                                                            )
-                                                            audioFile = it
-                                                        }
-                                                        awaitRelease()
-                                                    } finally {
-                                                        try {
-                                                            isPressed = false
-                                                            if (isRecording) {
-                                                                recorder.stop()
+                                                    File(context.cacheDir, "audio.mp3").also {
+                                                        Handler(Looper.getMainLooper()).postDelayed(
+                                                            {
+                                                                pressedX = motionEvent.x
+                                                                pressedY = motionEvent.y
+                                                                if (isPressed) {
 
-                                                                audioFile?.let { it1 ->
-                                                                    recordedAudio.invoke(
-                                                                        it1
+                                                                    recorder.start(it)
+                                                                    isRecording = true
+                                                                    Log.d(
+                                                                        "dragging",
+                                                                        "recording: $isRecording"
                                                                     )
                                                                 }
-                                                            }
-                                                            isRecording = false
-                                                        } catch (_: Exception) {
-                                                            // do nothing
-                                                        }
+                                                            },
+                                                            200
+                                                        )
+                                                        audioFile = it
+                                                        Log.d(
+                                                            "drag start",
+                                                            audioFile?.path ?: "empty"
+                                                        )
                                                     }
                                                 } else {
                                                     permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                                                 }
-                                            })
-                                        detectDragGestures { change, dragAmount ->
-                                            change.consume()
-                                            val (x, y) = dragAmount
-                                            when {
-                                                x < 0 -> {
-                                                    recorder.stop()
-                                                }
-                                                y > 0 -> {
-                                                    recorder.stop()
-                                                }
                                             }
-                                            offsetX += dragAmount.x
-                                            offsetY += dragAmount.y
+                                            MotionEvent.ACTION_MOVE -> {
+//                                                Log.d(
+//                                                    "drag",
+//                                                    "${motionEvent.x} ${pressedX - motionEvent.x}"
+//                                                )
+                                                if (motionEvent.x < -2000) {
+                                                    Log.d("dragging", "canceled ${motionEvent.x} ${pressedX}")
+                                                    audioFile = null
+                                                }
+
+                                            }
                                         }
+                                        true
                                     }
                             )
                         }
@@ -545,20 +550,51 @@ fun AudioRecordingUi() {
             .wrapContentWidth()
             .width(230.dp)
             .height(50.dp)
-            .padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically
+            .padding(horizontal = 10.dp)
     ) {
         Icon(
-            imageVector = ImageVector.vectorResource(id = R.drawable.ic_recorder),
-            contentDescription = null
+            imageVector = ImageVector.vectorResource(id = R.drawable.baseline_delete_24),
+            contentDescription = null,
+            tint = Color.Red
         )
         Spacer(modifier = Modifier.width(10.dp))
-        Text(text = "Recording audio")
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(text = "Recording audio", color = Color.Red)
+            Text(text = "Swipe to cancel", fontSize = 12.sp, color = Color.Red)
+        }
+
         Spacer(modifier = Modifier.width(10.dp))
 
         if (seconds < 10) {
-            Text(text = "0$minutes:0$seconds")
+            Text(text = "0$minutes:0$seconds", color = Color.Red)
         } else {
-            Text(text = "0$minutes:$seconds")
+            Text(text = "0$minutes:$seconds", color = Color.Red)
         }
+    }
+}
+
+@Composable
+fun Drag2DGestures() {
+    val size by remember { mutableStateOf(400.dp) }
+    val offsetX = remember { mutableStateOf(0f) }
+    val offsetY = remember { mutableStateOf(0f) }
+    Box(modifier = Modifier.size(size)) {
+        Box(
+            Modifier
+                .offset { IntOffset(offsetX.value.roundToInt(), offsetY.value.roundToInt()) }
+                .background(Color.Blue)
+                .size(50.dp)
+                .pointerInput(Unit) {
+                    detectDragGestures { change, dragAmount ->
+                        change.consumeAllChanges()
+                        offsetX.value = (offsetX.value + dragAmount.x)
+                            .coerceIn(0f, size.value - 50.dp.toPx())
+
+                        offsetY.value = (offsetY.value + dragAmount.y)
+                            .coerceIn(0f, size.value - 50.dp.toPx())
+                    }
+                }
+        )
+        Text("Drag the box around", Modifier.align(Alignment.Center))
     }
 }

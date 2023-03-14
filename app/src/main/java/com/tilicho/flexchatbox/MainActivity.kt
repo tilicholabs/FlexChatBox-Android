@@ -2,10 +2,12 @@ package com.tilicho.flexchatbox
 
 import android.content.Context
 import android.location.Location
+import android.media.AudioManager
 import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.BorderStroke
@@ -55,18 +57,16 @@ import coil.compose.rememberImagePainter
 import com.google.android.exoplayer2.ExoPlayer
 import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.ui.StyledPlayerView
-import com.google.android.gms.maps.model.CameraPosition
-import com.google.android.gms.maps.model.LatLng
-import com.google.maps.android.compose.GoogleMap
-import com.google.maps.android.compose.Marker
-import com.google.maps.android.compose.MarkerState
-import com.google.maps.android.compose.rememberCameraPositionState
 import com.tilicho.flexchatbox.enums.Sources
 import com.tilicho.flexchatbox.ui.theme.FlexChatBoxTheme
 import com.tilicho.flexchatbox.utils.ContactData
 import com.tilicho.flexchatbox.utils.getCurrentPositionInMmSs
 import com.tilicho.flexchatbox.utils.getDurationInMmSs
 import com.tilicho.flexchatbox.utils.getThumbnail
+import java.io.File
+import java.io.FileInputStream
+import java.io.IOException
+
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -185,20 +185,20 @@ class MainActivity : ComponentActivity() {
 
                 }*/
 
-                     /*val singapore = LatLng(1.35, 103.87)
-                     val cameraPositionState = rememberCameraPositionState {
-                         position = CameraPosition.fromLatLngZoom(singapore, 10f)
-                     }
-                     GoogleMap(
-                         modifier = Modifier.fillMaxSize(),
-                         cameraPositionState = cameraPositionState
-                     ) {
-                         Marker(
-                             state = MarkerState(position = singapore),
-                             title = "Singapore",
-                             snippet = "Marker in Singapore"
-                         )
-                     }*/
+                /*val singapore = LatLng(1.35, 103.87)
+                val cameraPositionState = rememberCameraPositionState {
+                    position = CameraPosition.fromLatLngZoom(singapore, 10f)
+                }
+                GoogleMap(
+                    modifier = Modifier.fillMaxSize(),
+                    cameraPositionState = cameraPositionState
+                ) {
+                    Marker(
+                        state = MarkerState(position = singapore),
+                        title = "Singapore",
+                        snippet = "Marker in Singapore"
+                    )
+                }*/
 
 
                 Scaffold(topBar = {
@@ -225,12 +225,37 @@ class MainActivity : ComponentActivity() {
                                 galleryItemsUriList = it.toMutableStateList()
                             },
                             recordedAudio = {
-                                MediaPlayer.create(this@MainActivity, it.toUri()).apply {
+                                Log.d("sjknf", "${it.toUri()}")
+                                val mediaPlayerView = MediaPlayer()//.create(this@MainActivity, it.toUri())
+                                mediaPlayerView.reset()
+                                mediaPlayerView.setOnPreparedListener {
                                     val updatedMediaPlayers = mediaPlayers.toMutableList()
-                                    updatedMediaPlayers.add(this)
+                                    updatedMediaPlayers.add(mediaPlayerView)
                                     mediaPlayers = updatedMediaPlayers
                                     setAudioPlayerState = true
                                 }
+                                mediaPlayerView.setDataSource(context, Uri.fromFile(it))
+
+                                mediaPlayerView.prepare()
+//                                    .apply {
+
+//                                    prepare()
+
+                               // val mediaPlayer = MediaPlayer()
+                                /*var fis: FileInputStream? = null
+                                try {
+                                    fis = FileInputStream(it)
+                                    mediaPlayer.setDataSource(this@MainActivity, it.toUri())
+                                    mediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC)
+                                    mediaPlayer.prepare()
+                                } finally {
+                                    if (fis != null) {
+                                        try {
+                                            fis.close()
+                                        } catch (ignore: IOException) {
+                                        }
+                                    }
+                                }*/
                             },
                             onClickSend = { it1, it2 ->
                                 textFieldValue = it1
