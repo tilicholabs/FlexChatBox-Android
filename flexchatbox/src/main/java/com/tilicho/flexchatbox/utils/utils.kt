@@ -3,6 +3,7 @@ package com.tilicho.flexchatbox.utils
 import android.annotation.SuppressLint
 import android.content.ContentResolver
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.location.Criteria
@@ -10,32 +11,22 @@ import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
 import android.net.Uri
+import android.os.Build
+import android.os.CancellationSignal
 import android.provider.ContactsContract
+import android.provider.MediaStore
+import android.util.Size
 import android.widget.Toast
 import androidx.activity.compose.ManagedActivityResultLauncher
+import androidx.activity.result.ActivityResult
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import com.tilicho.flexchatbox.enums.MediaType
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.Serializable
 import java.text.SimpleDateFormat
 import java.util.*
-
-
-fun generateUri(context: Context): Uri {
-    val file = context.createImageFile()
-    return FileProvider.getUriForFile(
-        Objects.requireNonNull(context),
-        "${context.packageName}.provider",
-        file
-    )
-}
-
-fun Context.createImageFile(): File {
-    val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss").format(Date())
-    val imageFileName = "JPEG_${timeStamp}_"
-    return File.createTempFile(imageFileName, ".jpg", externalCacheDir)
-}
 
 fun showToast(context: Context, message: String) {
     Toast.makeText(context, message, Toast.LENGTH_LONG).show()
@@ -65,14 +56,10 @@ fun getLocation(context: Context): Location? {
 
     try {
         if (
-            ContextCompat.checkSelfPermission(
-                context,
-                android.Manifest.permission.ACCESS_COARSE_LOCATION
-            ) == PackageManager.PERMISSION_GRANTED ||
-            ContextCompat.checkSelfPermission(
-                context,
-                android.Manifest.permission.ACCESS_FINE_LOCATION
-            ) == PackageManager.PERMISSION_GRANTED
+            ContextCompat.checkSelfPermission(context,
+                android.Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+            ContextCompat.checkSelfPermission(context,
+                android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
         ) {
 
             location = locationManager?.getLastKnownLocation(LocationManager.GPS_PROVIDER)
@@ -100,6 +87,38 @@ fun getLocation(context: Context): Location? {
     return location
 }
 
+fun cameraIntent(videoLauncher: ManagedActivityResultLauncher<Intent, ActivityResult>) {
+    val takePictureIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
+    takePictureIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    val takeVideoIntent = Intent(MediaStore.ACTION_VIDEO_CAPTURE)
+    val chooserIntent = Intent.createChooser(takePictureIntent, "Capture Image or Video")
+    chooserIntent.putExtra(Intent.EXTRA_INITIAL_INTENTS, arrayOf(takeVideoIntent))
+    videoLauncher.launch(chooserIntent)
+}
+
+fun openFiles(
+    context: Context,
+    fileLauncher: ManagedActivityResultLauncher<Intent, ActivityResult>,
+) {
+    Intent(Intent.ACTION_GET_CONTENT).apply {
+        type = "*/*"
+        addCategory(Intent.CATEGORY_OPENABLE)
+        putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+    }.also { fileIntent ->
+        fileIntent.resolveActivity(context.packageManager)?.also {
+            fileLauncher.launch(Intent.createChooser(fileIntent,
+                "Choose File to Upload.."))
+        }
+    }
+}
+
+fun getImageUri(context: Context, inImage: Bitmap): Uri? {
+    val bytes = ByteArrayOutputStream()
+    inImage.compress(Bitmap.CompressFormat.JPEG, 100, bytes)
+    val path =
+        MediaStore.Images.Media.insertImage(context.contentResolver, inImage, "Title", null)
+    return Uri.parse(path)
+}
 
 val primaryMobileNumberRegex = Regex("^(91){1}[1-9]{1}[0-9]{9}\$")
 val secondaryMobileNumberRegex = Regex("^[1-9]{1}[0-9]{9}\$")
@@ -185,4 +204,23 @@ data class ContactData(
             name?.trim()?.get(ZERO).toString().uppercase(Locale.getDefault())
         }
     }
+}
+
+fun getMediaType(context: Context, source: Uri?): MediaType {
+    val mediaTypeRaw = source?.let { context.contentResolver.getType(it) }
+    if (mediaTypeRaw?.startsWith("image") == true)
+        return MediaType.MediaTypeImage
+    if (mediaTypeRaw?.startsWith("video") == true)
+        return MediaType.MediaTypeVideo
+    return MediaType.Unknown
+}
+
+fun getThumbnail(context: Context, uri: Uri): Bitmap? {
+    var bitmap: Bitmap? = null
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        val mSize = Size(512, 512)
+        val cancellationSignal = CancellationSignal()
+        bitmap = context.contentResolver.loadThumbnail(uri, mSize, cancellationSignal)
+    }
+    return bitmap
 }

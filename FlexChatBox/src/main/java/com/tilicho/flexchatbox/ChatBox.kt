@@ -1,15 +1,20 @@
 package com.tilicho.flexchatbox
 
 import android.Manifest
+import android.app.Activity
 import android.content.Context
-import android.location.Location
+import android.graphics.Bitmap
 import android.net.Uri
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -25,11 +30,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Button
+import androidx.compose.material.Card
 import androidx.compose.material.Divider
 import androidx.compose.material.Icon
 import androidx.compose.material.Surface
@@ -40,6 +50,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -47,10 +58,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
@@ -59,17 +76,28 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import coil.compose.rememberAsyncImagePainter
+import com.google.android.exoplayer2.ExoPlayer
+import com.google.android.exoplayer2.MediaItem
+import com.google.android.exoplayer2.ui.StyledPlayerView
 import com.tilicho.flexchatbox.audiorecorder.AndroidAudioRecorder
+import com.tilicho.flexchatbox.enums.MediaType
 import com.tilicho.flexchatbox.enums.Sources
 import com.tilicho.flexchatbox.utils.ContactData
 import com.tilicho.flexchatbox.utils.GALLERY_INPUT_TYPE
 import com.tilicho.flexchatbox.utils.GetMediaActivityResultContract
+import com.tilicho.flexchatbox.utils.LOCATION_URL
+import com.tilicho.flexchatbox.utils.cameraIntent
 import com.tilicho.flexchatbox.utils.checkPermission
-import com.tilicho.flexchatbox.utils.generateUri
 import com.tilicho.flexchatbox.utils.getContacts
+import com.tilicho.flexchatbox.utils.getImageUri
 import com.tilicho.flexchatbox.utils.getLocation
+import com.tilicho.flexchatbox.utils.getMediaType
+import com.tilicho.flexchatbox.utils.getThumbnail
+import com.tilicho.flexchatbox.utils.openFiles
 import com.tilicho.flexchatbox.utils.requestPermission
 import com.tilicho.flexchatbox.utils.showToast
 import kotlinx.coroutines.delay
@@ -77,22 +105,27 @@ import java.io.File
 import kotlin.math.roundToInt
 import kotlin.time.Duration.Companion.seconds
 
+
+@RequiresApi(Build.VERSION_CODES.Q)
 @Composable
 fun ChatBox(
     context: Context,
     source: Sources,
-    cameraImage: (Uri) -> Unit,
     selectedPhotosOrVideos: (List<Uri>) -> Unit,
     recordedAudio: (File) -> Unit,
     onClickSend: (String, Location?) -> Unit,
     selectedContactsCallBack: (List<ContactData>) -> Unit,
+    selectedFiles: (List<Uri>) -> Unit,
+    camera: (Sources, Uri) -> Unit,
 ) {
     var textFieldValue by rememberSaveable { mutableStateOf("") }
-    var capturedImageUri by remember {
-        mutableStateOf<Uri>(Uri.EMPTY)
-    }
+
     var location by remember {
         mutableStateOf<Location?>(null)
+    }
+
+    var galleryList by remember {
+        mutableStateOf<List<Uri>?>(null)
     }
 
     val recorder by lazy {
@@ -114,6 +147,8 @@ fun ChatBox(
 
     var contacts: List<ContactData> by remember { mutableStateOf(listOf()) }
 
+    val filesUriList: MutableList<Uri> by remember { mutableStateOf(mutableListOf()) }
+
     var displayContacts by remember {
         mutableStateOf(false)
     }
@@ -127,13 +162,63 @@ fun ChatBox(
 
     }
 
-    val cameraLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) {
-        cameraImage.invoke(capturedImageUri)
+    var state by remember {
+        mutableStateOf(false)
+    }
+    var showDialog by remember { mutableStateOf(false) }
+    val galleryLauncher = rememberLauncherForActivityResult(GetMediaActivityResultContract()) {
+        galleryList = it
+        state = true
+        showDialog = true
+        selectedPhotosOrVideos(it)
+    }
+    if (state) {
+
+        galleryList?.let {
+            if (showDialog) {
+                GalleryPreviewDialog(
+                    context,
+                    galleryList = galleryList!!,
+                    galleryLauncher = galleryLauncher,
+                    onDismissCallback = {
+                        showDialog = it
+                    })
+            }
+
+        }
     }
 
-    val galleryLauncher = rememberLauncherForActivityResult(GetMediaActivityResultContract()) {
-        selectedPhotosOrVideos.invoke(it)
-    }
+    val fileLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { activityResult ->
+            if (activityResult.resultCode == Activity.RESULT_OK) {
+                if (activityResult.data?.clipData != null) {
+                    val count = activityResult.data?.clipData?.itemCount
+                    var currentItem = 0
+                    while (currentItem < count!!) {
+                        activityResult.data!!.clipData?.getItemAt(currentItem)?.uri
+                            ?.let { (filesUriList.add(it)) }
+                        currentItem += 1
+                    }
+                    selectedFiles(filesUriList)
+                }
+            }
+        }
+
+    val cameraLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { activityResult ->
+            if (activityResult.resultCode == Activity.RESULT_OK) {
+
+                if (activityResult.data?.data != null) {
+                    activityResult.data?.data?.let {
+                        camera(Sources.VIDEO, it)
+                    }
+                } else {
+                    getImageUri(context, activityResult.data?.extras?.get("data") as Bitmap)?.let {
+                        camera(Sources.CAMERA, it)
+                    }
+                }
+            }
+        }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -141,15 +226,14 @@ fun ChatBox(
         if (isGranted) {
             isDeniedPermission = false
             when (source) {
-                Sources.CAMERA -> {
-                    capturedImageUri = generateUri(context)
-                    cameraLauncher.launch(capturedImageUri)
-                }
                 Sources.GALLERY -> {
                     galleryLauncher.launch(GALLERY_INPUT_TYPE)
                 }
                 Sources.LOCATION -> {
-                    location = getLocation(context)
+                    val _location = getLocation(context)
+                    val latLong =
+                        (_location?.latitude).toString() + "," + (_location?.longitude).toString()
+                    _location?.let { Location(_location, LOCATION_URL + latLong) }
                 }
                 Sources.VOICE -> {
                 }
@@ -157,6 +241,13 @@ fun ChatBox(
                     contacts = getContacts(context)
                     displayContacts = true
                 }
+                Sources.FILES -> {
+                    openFiles(context, fileLauncher)
+                }
+                Sources.CAMERA -> {
+                    cameraIntent(cameraLauncher)
+                }
+                else -> {}
             }
         } else {
             isDeniedPermission = true
@@ -209,18 +300,6 @@ fun ChatBox(
 
             if (true) {
                 when (source) {
-                    Sources.CAMERA -> {
-                        SourceImage(icon = R.drawable.ic_camera, isDeniedPermission, onClickIcon = {
-                            // Check whether permission is granted or not, if not request permission
-                            if (checkPermission(context, Manifest.permission.CAMERA)) {
-                                capturedImageUri = generateUri(context)
-                                cameraLauncher.launch(capturedImageUri)
-                            } else {
-                                requestPermission(permissionLauncher, Manifest.permission.CAMERA)
-                            }
-                        })
-                    }
-
                     Sources.GALLERY -> {
                         SourceImage(icon = R.drawable.ic_gallery,
                             isDenied = isDeniedPermission,
@@ -248,7 +327,10 @@ fun ChatBox(
                                         context, Manifest.permission.ACCESS_FINE_LOCATION
                                     )
                                 ) {
-                                    location = getLocation(context)
+                                    val _location = getLocation(context)
+                                    val latLong =
+                                        (_location?.latitude).toString() + "," + (_location?.longitude).toString()
+                                    location = Location(_location, LOCATION_URL + latLong)
                                     onClickSend.invoke("", location)
                                 } else {
                                     requestPermission(
@@ -270,24 +352,6 @@ fun ChatBox(
                         var offsetY by remember { mutableStateOf(0f) }
                         Box(
                             contentAlignment = Alignment.Center,
-                            /*modifier = Modifier
-                                .offset {
-                                    IntOffset(
-                                        offsetX.roundToInt(),
-                                        offsetY.roundToInt()
-                                    )
-                                }
-                                .pointerInput(Unit) {
-                                    detectDragGestures() { change, dragAmount ->
-                                        change.consume()
-                                        val (x, y) = dragAmount
-                                        when {
-                                            x < 0 -> {
-                                                recorder.stop()
-                                            }
-                                        }
-                                    }
-                                }*/
                         ) {
                             Icon(
                                 imageVector = ImageVector.vectorResource(R.drawable.ic_mic),
@@ -376,7 +440,7 @@ fun ChatBox(
                     }
                     Sources.CONTACTS -> {
                         SourceImage(
-                            icon = R.drawable.baseline_person_outline_24,
+                            icon = R.drawable.ic_person,
                             isDenied = isDeniedPermission
                         ) {
                             if (checkPermission(context, Manifest.permission.READ_CONTACTS)) {
@@ -390,6 +454,33 @@ fun ChatBox(
                             }
                         }
                     }
+                    Sources.FILES -> {
+                        SourceImage(icon = R.drawable.ic_file,
+                            isDenied = isDeniedPermission,
+                            onClickIcon = {
+                                // Check whether permission is granted or not, if not request permission
+                                if (checkPermission(context,
+                                        Manifest.permission.READ_EXTERNAL_STORAGE)
+                                ) {
+                                    openFiles(context, fileLauncher)
+                                } else {
+                                    requestPermission(permissionLauncher,
+                                        Manifest.permission.READ_EXTERNAL_STORAGE)
+                                }
+                            })
+                    }
+                    Sources.CAMERA -> {
+                        SourceImage(icon = R.drawable.ic_camera, isDenied = isDeniedPermission) {
+                            // Check whether permission is granted or not, if not request permission
+                            if (checkPermission(context, Manifest.permission.CAMERA)) {
+                                cameraIntent(cameraLauncher)
+//                                captureVideo(context, videoLauncher, generateUri(context, MEDIA_TYPE_VIDEO))
+                            } else {
+                                requestPermission(permissionLauncher, Manifest.permission.CAMERA)
+                            }
+                        }
+                    }
+                    else -> {}
                 }
             }
             Box(
@@ -441,7 +532,7 @@ private fun String.Companion.empty() = ""
 
 @Composable
 fun DisplayContacts(
-    contacts: List<ContactData>, selectedContactsCallBack: (List<ContactData>) -> Unit
+    contacts: List<ContactData>, selectedContactsCallBack: (List<ContactData>) -> Unit,
 ) {
 
     val selectedContacts: MutableList<ContactData> = mutableListOf()
@@ -507,7 +598,7 @@ fun DisplayContacts(
                                     }
                                 }), verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column() {
+                            Column {
                                 contact.name?.let { Text(text = it) }
                                 contact.mobileNumber?.let { Text(text = it) }
                             }
@@ -560,5 +651,195 @@ fun AudioRecordingUi() {
         } else {
             Text(text = "0$minutes:$seconds")
         }
+    }
+}
+
+@RequiresApi(Build.VERSION_CODES.Q)
+@Composable
+fun GalleryPreviewUI(
+    context: Context,
+    items: List<Uri>,
+    galleryLauncher: ManagedActivityResultLauncher<String, List<@JvmSuppressWildcards Uri>>,
+    onClick: (Boolean) -> Unit,
+) {
+
+    var previewUri by remember {
+        mutableStateOf<Uri?>(items[0])
+    }
+
+    val previewUriList by remember {
+        mutableStateOf<MutableList<Uri>?>(items as MutableList<Uri>)
+    }
+
+    Column(modifier = Modifier
+        .background(color = Color.Black)
+        .fillMaxSize()) {
+        Row(modifier = Modifier
+            .fillMaxWidth()
+            .padding(dimensionResource(id = R.dimen.spacing_20))) {
+            Image(imageVector = ImageVector.vectorResource(R.drawable.ic_close),
+                contentDescription = null,
+                modifier = Modifier
+                    .clickable {
+                        onClick.invoke(false)
+                    }
+                    .padding(dimensionResource(id = R.dimen.spacing_20))
+                    .size(dimensionResource(id = R.dimen.spacing_70))
+            )
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            if (previewUriList?.size!! > 1) {
+                Image(ImageVector.vectorResource(R.drawable.ic_delete),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .padding(dimensionResource(id = R.dimen.spacing_20))
+                        .size(dimensionResource(id = R.dimen.spacing_70))
+                        .clickable {
+                            previewUri?.let { previewUriList?.remove(it) }
+                            previewUri = previewUriList?.get(0)
+                        }
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_90)))
+
+        LazyRow(modifier = Modifier
+            .fillMaxWidth()
+            .wrapContentHeight(),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            itemsIndexed(items) { _, item ->
+                if (getMediaType(context, item) == MediaType.MediaTypeImage) {
+                    Image(
+                        painter = rememberAsyncImagePainter(model = item),
+                        contentDescription = "avatar",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(size = if (previewUri == item) dimensionResource(id = R.dimen.spacing_100) else dimensionResource(
+                                id = R.dimen.spacing_90))
+                            .clickable {
+                                previewUri = item
+                            }
+                            .border(width = 2.dp,
+                                color = if (previewUri == item) Color(0xff0096FF) else Color.Transparent)
+                    )
+                } else if (getMediaType(context, item) == MediaType.MediaTypeVideo) {
+                    getThumbnail(context, item)?.asImageBitmap()?.let {
+                        Image(
+                            bitmap = it,
+                            contentDescription = "avatar",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .size(size = if (previewUri == item) dimensionResource(id = R.dimen.spacing_100) else dimensionResource(
+                                    id = R.dimen.spacing_90))
+                                .clickable {
+                                    previewUri = item
+                                }
+                                .border(width = 2.dp,
+                                    color = if (previewUri == item) Color(0xff0096FF) else Color.Transparent)
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.width(dimensionResource(id = R.dimen.spacing_20)))
+            }
+        }
+
+        Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_50)))
+
+        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.TopEnd) {
+                if (getMediaType(context, previewUri) == MediaType.MediaTypeImage) {
+                    Image(painter = rememberAsyncImagePainter(model = previewUri),
+                        contentDescription = null,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(473.dp)
+                            .clip(RectangleShape)
+                    )
+                } else if (getMediaType(context, previewUri) == MediaType.MediaTypeVideo) {
+                    Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_100)))
+                    VideoView(videoUri = previewUri.toString())
+                    Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_100)))
+                }
+
+        }
+
+        Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_50)))
+
+        Row(horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth()) {
+            Card(shape = RectangleShape,
+                backgroundColor = Color.White,
+                modifier = Modifier.clickable {
+                    galleryLauncher.launch(GALLERY_INPUT_TYPE)
+                }) {
+                Image(imageVector = ImageVector.vectorResource(id = R.drawable.ic_gallery),
+                    contentDescription = null, modifier = Modifier.padding(
+                        dimensionResource(id = R.dimen.spacing_30)))
+            }
+        }
+
+        Spacer(modifier = Modifier.weight(1f))
+
+        Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
+            Image(
+                imageVector = ImageVector.vectorResource(R.drawable.ic_ok),
+                contentDescription = null,
+                modifier = Modifier
+                    .padding(dimensionResource(id = R.dimen.spacing_20))
+                    .size(dimensionResource(id = R.dimen.spacing_80))
+                    .clickable {
+                        onClick.invoke(false)
+                    }
+            )
+        }
+    }
+}
+
+@RequiresApi(Build.VERSION_CODES.Q)
+@OptIn(ExperimentalComposeUiApi::class)
+@Composable
+fun GalleryPreviewDialog(
+    context: Context,
+    galleryList: List<Uri>,
+    galleryLauncher: ManagedActivityResultLauncher<String, List<@JvmSuppressWildcards Uri>>,
+    onDismissCallback: (Boolean) -> Unit,
+) {
+    Dialog(onDismissRequest = {
+        onDismissCallback(false)
+    },
+        properties = DialogProperties(usePlatformDefaultWidth = false,
+            dismissOnBackPress = false,
+            dismissOnClickOutside = false))
+    {
+        GalleryPreviewUI(context, items = galleryList, galleryLauncher = galleryLauncher) {
+            onDismissCallback(it)
+        }
+    }
+}
+
+@Composable
+fun VideoView(videoUri: String) {
+    val context = LocalContext.current
+
+    val exoPlayer = ExoPlayer.Builder(LocalContext.current)
+        .build()
+        .also { exoPlayer ->
+            val mediaItem = MediaItem.Builder()
+                .setUri(videoUri)
+                .build()
+            exoPlayer.setMediaItem(mediaItem)
+            exoPlayer.prepare()
+        }
+
+    DisposableEffect(
+        AndroidView(factory = {
+            StyledPlayerView(context).apply {
+                player = exoPlayer
+            }
+        })
+    ) {
+        onDispose { exoPlayer.release() }
     }
 }
