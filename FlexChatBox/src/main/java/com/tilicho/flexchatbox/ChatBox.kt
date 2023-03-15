@@ -106,6 +106,10 @@ fun ChatBox(
     val recorder by lazy {
         AndroidAudioRecorder(context)
     }
+
+    var audioFile: File? = null /*by remember {
+        mutableStateOf<File?>(null)
+    }*/
      /*by remember {
         mutableStateOf<File?>(null)
     }*/
@@ -282,7 +286,9 @@ fun ChatBox(
 
                         var pressedX = 0F
                         var pressedY = 0F
-                        var audioFile: File? = null
+                        var fileName by remember {
+                            mutableStateOf("")
+                        }
                         Box(
                             contentAlignment = Alignment.Center,
                         ) {
@@ -294,35 +300,36 @@ fun ChatBox(
                                     .pointerInteropFilter { motionEvent ->
                                         when (motionEvent.action) {
                                             MotionEvent.ACTION_UP -> {
-                                                Log.d("drag end", audioFile?.path ?: "empty")
+                                                Log.d("up", audioFile?.path ?: "empty")
                                                 try {
                                                     isPressed = false
                                                     Log.d(
-                                                        "dragging",
+                                                        "up",
                                                         "record: $isRecording pressed: $isPressed"
                                                     )
                                                     if (isRecording) {
                                                         recorder.stop()
                                                         Log.d(
-                                                            "drag end1",
+                                                            "audio up",
                                                             audioFile?.path ?: "empty"
                                                         )
                                                         try {
                                                             Handler(Looper.getMainLooper()).postDelayed(
                                                                 {
-                                                                    audioFile?.let { it1 ->
+                                                                    /*audioFile?.let { it1 ->
                                                                         recordedAudio.invoke(
                                                                             it1
                                                                         )
-                                                                    }
-                                                                },100
+                                                                    }*/
+                                                                    recordedAudio.invoke(File(context.cacheDir, fileName))
+                                                                }, 100
                                                             )
                                                         } catch (e: Exception) {
-                                                            Log.d("dragging 3", "$e")
+                                                            Log.d("up", "$e")
                                                         }
                                                     }
                                                     isRecording = false
-                                                    Log.d("dragging 2", "$isRecording")
+                                                    Log.d("up", "$isRecording")
                                                 } catch (_: Exception) {
                                                     // do nothing
                                                 }
@@ -333,26 +340,27 @@ fun ChatBox(
                                                         context, Manifest.permission.RECORD_AUDIO
                                                     )
                                                 ) {
-                                                    File(context.cacheDir, "audio.mp3").also {
+                                                    fileName = "audio${System.currentTimeMillis()}.mp3"
+                                                    File(context.cacheDir,
+                                                        fileName).also {
                                                         Handler(Looper.getMainLooper()).postDelayed(
                                                             {
                                                                 pressedX = motionEvent.x
                                                                 pressedY = motionEvent.y
                                                                 if (isPressed) {
-
                                                                     recorder.start(it)
                                                                     isRecording = true
                                                                     Log.d(
-                                                                        "dragging",
+                                                                        "down",
                                                                         "recording: $isRecording"
                                                                     )
                                                                 }
                                                             },
                                                             200
                                                         )
-                                                        audioFile = it
+                                                        //audioFile = it
                                                         Log.d(
-                                                            "drag start",
+                                                            "audio down",
                                                             audioFile?.path ?: "empty"
                                                         )
                                                     }
@@ -366,7 +374,8 @@ fun ChatBox(
 //                                                    "${motionEvent.x} ${pressedX - motionEvent.x}"
 //                                                )
                                                 if (motionEvent.x < -2000) {
-                                                    Log.d("dragging", "canceled ${motionEvent.x} ${pressedX}")
+                                                    Log.d("move",
+                                                        "canceled ${motionEvent.x} ${pressedX}")
                                                     audioFile = null
                                                 }
 

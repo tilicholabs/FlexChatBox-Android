@@ -2,7 +2,7 @@ package com.tilicho.flexchatbox
 
 import android.content.Context
 import android.location.Location
-import android.media.AudioManager
+import android.media.AudioAttributes
 import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Bundle
@@ -63,9 +63,7 @@ import com.tilicho.flexchatbox.utils.ContactData
 import com.tilicho.flexchatbox.utils.getCurrentPositionInMmSs
 import com.tilicho.flexchatbox.utils.getDurationInMmSs
 import com.tilicho.flexchatbox.utils.getThumbnail
-import java.io.File
 import java.io.FileInputStream
-import java.io.IOException
 
 
 class MainActivity : ComponentActivity() {
@@ -110,97 +108,11 @@ class MainActivity : ComponentActivity() {
                 mutableStateOf(false)
             }
 
+            var mediaPlayer: MediaPlayer
             var displayText by remember {
                 mutableStateOf(false)
             }
             FlexChatBoxTheme {
-
-                /*Column(
-                    modifier = Modifier
-                        .padding(10.dp)
-                        .fillMaxSize(),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Button(onClick = { flexItemsDialog = true }) {
-                        Text(text = "Select Flex")
-                    }
-                    if (flexItemsDialog) {
-                        DisplayFlexItems(selectedFlex = {
-                            selectedFlex = it
-                        }, setFlexItemDialog = {
-                            flexItemsDialog = it
-                        })
-                    }
-
-                    var displayState by remember {
-                        mutableStateOf(false)
-                    }
-                    if (displayState) {
-                        DisplayContacts(contacts = contacts)
-                    }
-
-                    Spacer(modifier = Modifier.weight(1f))
-                    if (selectedFlex == Sources.LOCATION) {
-                        DisplayLocation(location = location)
-                    } else if (selectedFlex == Sources.VOICE) {
-                        AudioPlayer(mediaPlayer = mediaPlayer)
-                    } else if (selectedFlex == Sources.CAMERA) {
-                        DisplayImage(image = imageUri)
-                    } else if (selectedFlex == Sources.CONTACTS) {
-                        Column(modifier = Modifier.padding(bottom = 300.dp)) {
-                            Button(onClick = {
-                                displayState = true
-                            }) {
-                                Text(text = "Display contacts")
-                            }
-                        }
-
-
-                    }
-
-
-
-                    ChatBox(
-                        context = this@MainActivity,
-                        source = selectedFlex,
-                        cameraImage = { uri ->
-                            imageUri = uri
-                        },
-                        onClickSend = { inputValue, _location ->
-                            textFieldValue = inputValue
-                            location = _location
-                        },
-                        selectedPhotosOrVideos = { uriList ->
-                            galleryUriList = uriList.toMutableStateList()
-                        },
-                        recordedAudio = {
-                            MediaPlayer.create(this@MainActivity, it.toUri()).apply {
-                                mediaPlayer = this
-                            }
-                        },
-                        selectedContactsCallBack = {
-                            contacts = it
-                        }
-                    )
-
-                }*/
-
-                /*val singapore = LatLng(1.35, 103.87)
-                val cameraPositionState = rememberCameraPositionState {
-                    position = CameraPosition.fromLatLngZoom(singapore, 10f)
-                }
-                GoogleMap(
-                    modifier = Modifier.fillMaxSize(),
-                    cameraPositionState = cameraPositionState
-                ) {
-                    Marker(
-                        state = MarkerState(position = singapore),
-                        title = "Singapore",
-                        snippet = "Marker in Singapore"
-                    )
-                }*/
-
-
                 Scaffold(topBar = {
                     DisplayFlexItems(selectedFlex = {
                         selectedFlex = it
@@ -225,18 +137,50 @@ class MainActivity : ComponentActivity() {
                                 galleryItemsUriList = it.toMutableStateList()
                             },
                             recordedAudio = {
-                                Log.d("sjknf", "${it.toUri()}")
-                                val mediaPlayerView = MediaPlayer()//.create(this@MainActivity, it.toUri())
-                                mediaPlayerView.reset()
-                                mediaPlayerView.setOnPreparedListener {
+                                MediaPlayer.create(this@MainActivity, it.toUri()).apply {
                                     val updatedMediaPlayers = mediaPlayers.toMutableList()
-                                    updatedMediaPlayers.add(mediaPlayerView)
+                                    updatedMediaPlayers.add(this)
                                     mediaPlayers = updatedMediaPlayers
                                     setAudioPlayerState = true
                                 }
-                                mediaPlayerView.setDataSource(context, Uri.fromFile(it))
 
-                                mediaPlayerView.prepare()
+                                Log.d("sjknf", "${it.toUri().toString()} ${it.exists()}")
+
+                                /*val mediaPlayer = MediaPlayer()
+                                val fis = FileInputStream(it)
+                                mediaPlayer.setDataSource(fis.getFD())
+                                mediaPlayer.prepareAsync()
+                                val updatedMediaPlayers = mediaPlayers.toMutableList()
+                                    updatedMediaPlayers.add(mediaPlayer)
+                                    mediaPlayers = updatedMediaPlayers
+                                    setAudioPlayerState = true*/
+//                                MediaPlayer.create(this@MainActivity, it.toUri()).apply {
+//                                    val updatedMediaPlayers = mediaPlayers.toMutableList()
+//                                    updatedMediaPlayers.add(this)
+//                                    mediaPlayers = updatedMediaPlayers
+//                                    setAudioPlayerState = true
+//                                }
+//                                val mediaPlayer = MediaPlayer()//.create(this@MainActivity, Uri.fromFile(it))
+//                                    mediaPlayer.setDataSource(it.toUri().toString())
+//                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+//                                        this.setAudioStreamType(AudioManager.STREAM_MUSIC)
+//                                    } else {
+//                                        this.setAudioStreamType(AudioManager.STREAM_MUSIC)
+//                                    }
+
+//                                mediaPlayer.prepare()
+//                                val updatedMediaPlayers = mediaPlayers.toMutableList()
+//                                updatedMediaPlayers.add(mediaPlayer)
+//                                mediaPlayers = updatedMediaPlayers
+//                                setAudioPlayerState = true
+                               // mediaPlayer.prepareAsync()
+
+
+
+//                                mediaPlayerView.prepare()
+                                //mediaPlayerView.setDataSource(context, Uri.fromFile(it))
+
+                                //mediaPlayerView.prepare()
 //                                    .apply {
 
 //                                    prepare()
@@ -405,7 +349,7 @@ fun DisplayGalleryItems(context: Context, galleryItemsUriList: MutableList<Uri>?
 fun GalleryItemPreview(
     mediaType: MediaType?,
     mediaItem: Uri,
-    setGalleryPreview: (Boolean) -> Unit
+    setGalleryPreview: (Boolean) -> Unit,
 ) {
     Dialog(onDismissRequest = { setGalleryPreview(false) }) {
         if (mediaType == MediaType.MediaTypeImage) {
@@ -487,6 +431,7 @@ fun AudioPlayer(mediaPlayers: MutableList<MediaPlayer>) {
                             .size(50.dp)
                     )
 
+                    //mediaPlayers[index].prepareAsync()
                     mediaPlayers[index].setOnCompletionListener {
                         isPlaying = false
                         durationScale = mediaPlayers[index].getDurationInMmSs()
@@ -576,7 +521,7 @@ fun DisplayContacts(contacts: List<ContactData>, chatText: String) {
 @Composable
 fun DisplayFlexItems(
     selectedFlex: (Sources) -> Unit,
-    setFlexItemDialog: (Boolean) -> Unit
+    setFlexItemDialog: (Boolean) -> Unit,
 ) {
     Row(
         horizontalArrangement = Arrangement.SpaceEvenly,
