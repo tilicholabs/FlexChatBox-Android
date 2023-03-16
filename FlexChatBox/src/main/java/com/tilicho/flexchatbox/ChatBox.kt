@@ -80,6 +80,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil.compose.rememberAsyncImagePainter
+import coil.compose.rememberImagePainter
 import com.google.android.exoplayer2.ExoPlayer
 import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.ui.StyledPlayerView
@@ -104,7 +105,6 @@ import kotlinx.coroutines.delay
 import java.io.File
 import kotlin.math.roundToInt
 import kotlin.time.Duration.Companion.seconds
-
 
 @RequiresApi(Build.VERSION_CODES.Q)
 @Composable
@@ -200,6 +200,13 @@ fun ChatBox(
                         currentItem += 1
                     }
                     selectedFiles(filesUriList)
+                } else {
+                    activityResult.data?.data.let {
+                        if (it != null) {
+                            filesUriList.add(it)
+                        }
+                    }
+                    selectedFiles(filesUriList)
                 }
             }
         }
@@ -287,7 +294,7 @@ fun ChatBox(
                         border = BorderStroke(1.dp, color = Color.Black)
                     ),
                 singleLine = false,
-                maxLines = 5,
+                maxLines = 4,
             )
         }
 
@@ -727,19 +734,29 @@ fun GalleryPreviewUI(
                                 color = if (previewUri == item) Color(0xff0096FF) else Color.Transparent)
                     )
                 } else if (getMediaType(context, item) == MediaType.MediaTypeVideo) {
-                    getThumbnail(context, item)?.asImageBitmap()?.let {
+                    Box(contentAlignment = Alignment.Center) {
+
+                        getThumbnail(context, item)?.asImageBitmap()?.let {
+                            Image(
+                                bitmap = it,
+                                contentDescription = "avatar",
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier
+                                    .size(size = if (previewUri == item) dimensionResource(id = R.dimen.spacing_100) else dimensionResource(
+                                        id = R.dimen.spacing_90))
+                                    .clickable {
+                                        previewUri = item
+                                    }
+                                    .border(width = 2.dp,
+                                        color = if (previewUri == item) Color(0xff0096FF) else Color.Transparent)
+                            )
+                        }
+
                         Image(
-                            bitmap = it,
-                            contentDescription = "avatar",
-                            contentScale = ContentScale.Crop,
+                            painter = rememberImagePainter(data = R.drawable.ic_play_grey),
+                            contentDescription = null,
                             modifier = Modifier
-                                .size(size = if (previewUri == item) dimensionResource(id = R.dimen.spacing_100) else dimensionResource(
-                                    id = R.dimen.spacing_90))
-                                .clickable {
-                                    previewUri = item
-                                }
-                                .border(width = 2.dp,
-                                    color = if (previewUri == item) Color(0xff0096FF) else Color.Transparent)
+                                .size(40.dp)
                         )
                     }
                 }
@@ -760,7 +777,7 @@ fun GalleryPreviewUI(
                     )
                 } else if (getMediaType(context, previewUri) == MediaType.MediaTypeVideo) {
                     Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_100)))
-                    VideoView(videoUri = previewUri.toString())
+                    VideoView(context, videoUri = previewUri.toString())
                     Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_100)))
                 }
 
@@ -820,10 +837,10 @@ fun GalleryPreviewDialog(
 }
 
 @Composable
-fun VideoView(videoUri: String) {
-    val context = LocalContext.current
+fun VideoView(context: Context, videoUri: String) {
+    if (context == null ) return
 
-    val exoPlayer = ExoPlayer.Builder(LocalContext.current)
+    val exoPlayer = ExoPlayer.Builder(context)
         .build()
         .also { exoPlayer ->
             val mediaItem = MediaItem.Builder()
@@ -834,7 +851,7 @@ fun VideoView(videoUri: String) {
         }
 
     DisposableEffect(
-        AndroidView(factory = {
+        AndroidView(modifier = Modifier.height(473.dp), factory = {
             StyledPlayerView(context).apply {
                 player = exoPlayer
             }

@@ -7,5 +7,6 @@ enum class Sources {
     CONTACTS,
     FILES,
     CAMERA,
-    VIDEO
+    VIDEO,
+    TEXT
 }

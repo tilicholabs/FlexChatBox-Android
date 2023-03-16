@@ -95,8 +95,8 @@ class MainActivity : ComponentActivity() {
                 mutableStateOf(Sources.CAMERA)
             }
 
-            var textFieldValue by remember {
-                mutableStateOf("")
+            var messages by remember {
+                mutableStateOf(mutableListOf<String?>(null))
             }
 
             var listOfLocations by remember {
@@ -251,8 +251,13 @@ class MainActivity : ComponentActivity() {
                                 }
                             },
                             onClickSend = { it1, it2 ->
-                                textFieldValue = it1
-                                displayText = true
+                                it1.let {
+                                    if (it != "") {
+                                        messages.add(it)
+                                        if (displayText == false)
+                                            displayText = true
+                                    }
+                                }
                                 it2.let {
                                     if (it != null) {
                                         location = it
@@ -266,7 +271,7 @@ class MainActivity : ComponentActivity() {
                                 contacts = currContactList
                             },
                             selectedFiles = {
-                                galleryItemsUriList = it.toMutableList()
+                                galleryItemsUriList = it.toMutableStateList()
                             },
                             camera = { _source, uri ->
                                 source = _source
@@ -289,7 +294,7 @@ class MainActivity : ComponentActivity() {
                     ) {
                         when (selectedFlex) {
                             Sources.CONTACTS -> {
-                                DisplayContacts(contacts = contacts, chatText = textFieldValue)
+                                DisplayContacts(contacts = contacts)
                             }
                             Sources.CAMERA -> {
                                 if (source == Sources.CAMERA) {
@@ -313,7 +318,8 @@ class MainActivity : ComponentActivity() {
                                                         setPreviewDialog = false
                                                     })
                                             ) {
-                                                VideoView(videoUri = cameraVideos.toString())
+                                                VideoView(context = context,
+                                                    videoUri = cameraVideos.toString())
                                             }
                                         }
                                     }
@@ -331,7 +337,7 @@ class MainActivity : ComponentActivity() {
                                                 })
                                         )
                                         Image(
-                                            painter = rememberImagePainter(data = R.drawable.ic_play),
+                                            painter = rememberImagePainter(data = R.drawable.ic_play_grey),
                                             contentDescription = null,
                                             modifier = Modifier
                                                 .size(50.dp)
@@ -364,6 +370,12 @@ class MainActivity : ComponentActivity() {
                             }
                             else -> {}
                         }
+
+                        if (displayText) {
+                            Row(horizontalArrangement = Arrangement.End) {
+                                DisplayMessages(messages)
+                            }
+                        }
                     }
                 }
             }
@@ -392,7 +404,7 @@ fun DisplayGalleryItems(context: Context, galleryItemsUriList: MutableList<Uri>?
 
     if (setPreviewDialog) {
         selectedGalleryItem?.let {
-            GalleryItemPreview(mediaType, mediaItem = it) {
+            GalleryItemPreview(context, mediaType, mediaItem = it) {
                 setPreviewDialog = it
             }
         }
@@ -447,6 +459,7 @@ fun DisplayGalleryItems(context: Context, galleryItemsUriList: MutableList<Uri>?
 
 @Composable
 fun GalleryItemPreview(
+    context: Context,
     mediaType: MediaType?,
     mediaItem: Uri,
     setGalleryPreview: (Boolean) -> Unit,
@@ -472,7 +485,7 @@ fun GalleryItemPreview(
                         setGalleryPreview.invoke(false)
                     })
             ) {
-                VideoView(videoUri = mediaItem.toString())
+                VideoView(context = context, videoUri = mediaItem.toString())
             }
         }
     }
@@ -594,7 +607,7 @@ fun DisplayImage(images: MutableList<Uri>?) {
 }
 
 @Composable
-fun DisplayContacts(contacts: List<ContactData>, chatText: String) {
+fun DisplayContacts(contacts: List<ContactData>) {
     LazyColumn(horizontalAlignment = Alignment.End) {
         items(contacts.size) {
             Card(elevation = 2.dp) {
@@ -605,14 +618,6 @@ fun DisplayContacts(contacts: List<ContactData>, chatText: String) {
             }
             Spacer(modifier = Modifier.height(10.dp))
 
-        }
-        if (chatText.isNotEmpty()) {
-            item {
-                Card(elevation = 2.dp) {
-                    Text(text = chatText, modifier = Modifier.padding(10.dp))
-                }
-
-            }
         }
     }
 }
@@ -702,7 +707,8 @@ fun DisplayFileItems(context: Context, galleryItemsUriList: MutableList<Uri>?) {
                         .border(shape = RoundedCornerShape(10.dp),
                             width = 1.dp,
                             color = Color.Black)
-                        .wrapContentWidth().wrapContentHeight()) {
+                        .wrapContentWidth()
+                        .wrapContentHeight()) {
                     Row(verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.padding(10.dp)) {
                         Image(imageVector = ImageVector.vectorResource(id = R.drawable.ic_uploaded_file),
@@ -741,23 +747,38 @@ fun DisplayLocation(modifier: Modifier = Modifier, location: com.tilicho.flexcha
     val customLinkifyTextView = remember {
         TextView(context)
     }
-    Card(modifier = Modifier.border(width = 1.dp, color = Color.Black, shape = RoundedCornerShape(10.dp)).width(300.dp)) {
-        Column {
-            Row(modifier = Modifier
-                .fillMaxWidth()
-                .width(300.dp), horizontalArrangement = Arrangement.End) {
-                AndroidView(modifier = modifier, factory = { customLinkifyTextView }) { textView ->
-                    textView.text = location.url
-                    LinkifyCompat.addLinks(textView, Linkify.ALL)
-                    Linkify.addLinks(textView, Patterns.PHONE, "tel:",
-                        Linkify.sPhoneNumberMatchFilter, Linkify.sPhoneNumberTransformFilter)
-                    textView.movementMethod = LinkMovementMethod.getInstance()
-                }
+    Column(modifier = Modifier
+        .border(width = 1.dp, color = Color.Black, shape = RoundedCornerShape(12.dp))
+        .width(300.dp)) {
+        Row(modifier = Modifier
+            .fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            AndroidView(modifier = modifier, factory = { customLinkifyTextView }) { textView ->
+                textView.text = location.url
+                LinkifyCompat.addLinks(textView, Linkify.ALL)
+                Linkify.addLinks(textView, Patterns.PHONE, "tel:",
+                    Linkify.sPhoneNumberMatchFilter, Linkify.sPhoneNumberTransformFilter)
+                textView.movementMethod = LinkMovementMethod.getInstance()
             }
-            Spacer(modifier = Modifier.height(4.dp))
+        }
+        Spacer(modifier = Modifier.height(4.dp))
 
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                Text(text = location.location.toString(), textAlign = TextAlign.Center)
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            Text(text = location.location.toString(), textAlign = TextAlign.Center, modifier = Modifier.padding(4.dp))
+        }
+    }
+}
+
+@Composable
+fun DisplayMessages(messages: MutableList<String?>) {
+    LazyColumn(horizontalAlignment = Alignment.End) {
+        itemsIndexed(messages) { index, item ->
+            if (item != "" && item != null) {
+                Box(modifier = Modifier
+                    .padding(10.dp)
+                    .border(width = 1.dp, color = Color.Black, shape = RoundedCornerShape(10.dp)))
+                {
+                    Text(text = item, fontSize = 16.sp, modifier = Modifier.padding(10.dp))
+                }
             }
         }
     }
