@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -63,7 +64,9 @@ import com.tilicho.flexchatbox.utils.ContactData
 import com.tilicho.flexchatbox.utils.getCurrentPositionInMmSs
 import com.tilicho.flexchatbox.utils.getDurationInMmSs
 import com.tilicho.flexchatbox.utils.getThumbnail
+import java.io.File
 import java.io.FileInputStream
+import java.io.IOException
 
 
 class MainActivity : ComponentActivity() {
@@ -93,8 +96,12 @@ class MainActivity : ComponentActivity() {
                 mutableStateOf<Uri?>(null)
             }
 
-            var mediaPlayers by remember {
-                mutableStateOf(mutableListOf<MediaPlayer>())
+            var mediaPlayer by remember {
+                mutableStateOf<MediaPlayer?>(null)
+            }
+
+            var file by remember {
+                mutableStateOf<File?>(null)
             }
             var flexItemsDialog by remember {
                 mutableStateOf(false)
@@ -108,11 +115,11 @@ class MainActivity : ComponentActivity() {
                 mutableStateOf(false)
             }
 
-            var mediaPlayer: MediaPlayer
             var displayText by remember {
                 mutableStateOf(false)
             }
             FlexChatBoxTheme {
+
                 Scaffold(topBar = {
                     DisplayFlexItems(selectedFlex = {
                         selectedFlex = it
@@ -137,12 +144,39 @@ class MainActivity : ComponentActivity() {
                                 galleryItemsUriList = it.toMutableStateList()
                             },
                             recordedAudio = {
-                                MediaPlayer.create(this@MainActivity, it.toUri()).apply {
-                                    val updatedMediaPlayers = mediaPlayers.toMutableList()
-                                    updatedMediaPlayers.add(this)
-                                    mediaPlayers = updatedMediaPlayers
-                                    setAudioPlayerState = true
+                                file = it
+                                val myUri =  it.toUri()// initialize Uri here
+                                if (mediaPlayer != null) {
+                                    mediaPlayer?.release()
                                 }
+                                mediaPlayer = MediaPlayer().apply {
+                                    setAudioAttributes(
+                                        AudioAttributes.Builder()
+                                            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                                            .setUsage(AudioAttributes.USAGE_MEDIA)
+                                            .build()
+                                    )
+//                                    setDataSource(applicationContext, myUri)
+//                                    prepare()
+                                }
+                                val inputStream = FileInputStream(file)
+                                mediaPlayer?.setDataSource(inputStream.getFD())
+                                inputStream.close()
+
+                                try {
+                                    mediaPlayer!!.prepare()
+                                } catch (e: IllegalStateException) {
+                                    // TODO Auto-generated catch block
+                                    e.printStackTrace()
+                                } catch (e: IOException) {
+                                    // TODO Auto-generated catch block
+                                    e.printStackTrace()
+                                }
+                                /*MediaPlayer.create(context, it.toUri()).apply {
+                                    mediaPlayer = this
+                                    setAudioPlayerState = true
+                                }*/
+
 
                                 Log.d("sjknf", "${it.toUri().toString()} ${it.exists()}")
 
@@ -235,8 +269,11 @@ class MainActivity : ComponentActivity() {
                                 DisplayImage(images = images)
                             }
                             Sources.VOICE -> {
-                                if (setAudioPlayerState) {
-                                    AudioPlayer(mediaPlayers = mediaPlayers)
+                                if (true) {
+                                    file?.let { it1 -> AudioPlayer(this@MainActivity, it1, mediaPlayer) }
+                                    mediaPlayer?.let { it1 ->
+
+                                    }
                                 }
                             }
                             Sources.LOCATION -> {
@@ -403,13 +440,77 @@ fun VideoView(videoUri: String) {
     }
 }
 
-
 @Composable
-fun AudioPlayer(mediaPlayers: MutableList<MediaPlayer>) {
-    LazyColumn {
-        items(mediaPlayers.size) { index ->
+fun AudioPlayer(context: Context, file: File, mediaPlayer: MediaPlayer?) {
+    var durationScale by remember {
+        mutableStateOf(mediaPlayer?.getDurationInMmSs())
+    }
+    var isPlaying by remember {
+        mutableStateOf(false)
+    }
+
+    val handler = Handler()
+    Card(
+        border = BorderStroke(width = Dp.Hairline, color = Color.Black),
+        shape = RoundedCornerShape(10.dp)
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = ImageVector.vectorResource(id = R.drawable.ic_recorder),
+                contentDescription = null,
+                modifier = Modifier
+                    .size(50.dp)
+            )
+
+            //mediaPlayers[index].prepareAsync()
+            mediaPlayer?.setOnCompletionListener {
+                isPlaying = false
+                durationScale = mediaPlayer.getDurationInMmSs()
+            }
+
+            Text(text = "Audio $durationScale")
+
+            if (!isPlaying) {
+                Icon(
+                    painter = painterResource(id = R.drawable.baseline_play_arrow_24),
+                    contentDescription = "",
+                    modifier = Modifier
+                        .size(30.dp)
+                        .clickable(onClick = {
+                            mediaPlayer?.start()
+                            object : Runnable {
+                                override fun run() {
+                                    try {
+                                        durationScale = mediaPlayer?.getCurrentPositionInMmSs().toString()
+                                    } catch (e: Exception) {
+                                    }
+                                    handler.postDelayed(this, 1000)
+                                }
+                            }.run()
+                            isPlaying = true
+                        })
+                )
+            } else {
+                Icon(
+                    painter = painterResource(R.drawable.baseline_pause_24),
+                    contentDescription = "",
+                    modifier = Modifier
+                        .size(30.dp)
+                        .clickable(onClick = {
+                            mediaPlayer?.pause()
+                            isPlaying = false
+                        })
+                )
+            }
+        }
+    }
+    /*LazyColumn {
+        items(mediaPlayer.size) { index ->
             var durationScale by remember {
-                mutableStateOf(mediaPlayers[index].getDurationInMmSs())
+                mutableStateOf(mediaPlayer[index].getDurationInMmSs())
             }
             var isPlaying by remember {
                 mutableStateOf(false)
@@ -422,7 +523,7 @@ fun AudioPlayer(mediaPlayers: MutableList<MediaPlayer>) {
             ) {
                 Row(
                     horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVreertically
                 ) {
                     Icon(
                         imageVector = ImageVector.vectorResource(id = R.drawable.ic_recorder),
@@ -432,9 +533,9 @@ fun AudioPlayer(mediaPlayers: MutableList<MediaPlayer>) {
                     )
 
                     //mediaPlayers[index].prepareAsync()
-                    mediaPlayers[index].setOnCompletionListener {
+                    mediaPlayer[index].setOnCompletionListener {
                         isPlaying = false
-                        durationScale = mediaPlayers[index].getDurationInMmSs()
+                        durationScale = mediaPlayer[index].getDurationInMmSs()
                     }
 
                     Text(text = "Audio $durationScale")
@@ -446,11 +547,11 @@ fun AudioPlayer(mediaPlayers: MutableList<MediaPlayer>) {
                             modifier = Modifier
                                 .size(30.dp)
                                 .clickable(onClick = {
-                                    mediaPlayers[index].start()
+                                    mediaPlayer[index].start()
                                     object : Runnable {
                                         override fun run() {
                                             durationScale =
-                                                mediaPlayers[index].getCurrentPositionInMmSs()
+                                                mediaPlayer[index].getCurrentPositionInMmSs()
                                             handler.postDelayed(this, 1000)
                                         }
                                     }.run()
@@ -464,7 +565,7 @@ fun AudioPlayer(mediaPlayers: MutableList<MediaPlayer>) {
                             modifier = Modifier
                                 .size(30.dp)
                                 .clickable(onClick = {
-                                    mediaPlayers[index].pause()
+                                    mediaPlayer[index].pause()
                                     isPlaying = false
                                 })
                         )
@@ -474,7 +575,7 @@ fun AudioPlayer(mediaPlayers: MutableList<MediaPlayer>) {
             Spacer(modifier = Modifier.height(10.dp))
         }
 
-    }
+    }*/
 }
 
 @Composable

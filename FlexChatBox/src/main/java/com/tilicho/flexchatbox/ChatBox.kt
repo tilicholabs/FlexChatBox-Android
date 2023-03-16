@@ -15,8 +15,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,7 +29,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Button
 import androidx.compose.material.Divider
@@ -107,12 +104,12 @@ fun ChatBox(
         AndroidAudioRecorder(context)
     }
 
-    var audioFile: File? = null /*by remember {
+    var audioFile by remember {
         mutableStateOf<File?>(null)
-    }*/
-     /*by remember {
-        mutableStateOf<File?>(null)
-    }*/
+    }
+    /*by remember {
+       mutableStateOf<File?>(null)
+   }*/
 
     var isPressed by remember {
         mutableStateOf(false)
@@ -124,6 +121,10 @@ fun ChatBox(
 
     var isDeniedPermission by remember {
         mutableStateOf(false)
+    }
+
+    var icon by remember {
+        mutableStateOf(R.drawable.ic_send)
     }
 
     var contacts: List<ContactData> by remember { mutableStateOf(listOf()) }
@@ -185,8 +186,10 @@ fun ChatBox(
     ) {
         if (isRecording) {
             Log.d("dragging 1", "$isRecording")
+            icon = R.drawable.ic_recorder
             AudioRecordingUi()
         } else {
+            icon = R.drawable.ic_send
             Log.d("dragging 1", "$isRecording")
             TextField(
                 value = textFieldValue,
@@ -321,7 +324,12 @@ fun ChatBox(
                                                                             it1
                                                                         )
                                                                     }*/
-                                                                    recordedAudio.invoke(File(context.cacheDir, fileName))
+                                                                    if (fileName.isNotEmpty()) {
+                                                                        recordedAudio.invoke(File(
+                                                                            context.cacheDir,
+                                                                            fileName))
+                                                                    }
+                                                                    fileName = ""
                                                                 }, 100
                                                             )
                                                         } catch (e: Exception) {
@@ -340,7 +348,8 @@ fun ChatBox(
                                                         context, Manifest.permission.RECORD_AUDIO
                                                     )
                                                 ) {
-                                                    fileName = "audio${System.currentTimeMillis()}.mp3"
+                                                    fileName =
+                                                        "audio${System.currentTimeMillis()}.mp3"
                                                     File(context.cacheDir,
                                                         fileName).also {
                                                         Handler(Looper.getMainLooper()).postDelayed(
@@ -358,7 +367,7 @@ fun ChatBox(
                                                             },
                                                             200
                                                         )
-                                                        //audioFile = it
+                                                        audioFile = it
                                                         Log.d(
                                                             "audio down",
                                                             audioFile?.path ?: "empty"
@@ -369,14 +378,10 @@ fun ChatBox(
                                                 }
                                             }
                                             MotionEvent.ACTION_MOVE -> {
-//                                                Log.d(
-//                                                    "drag",
-//                                                    "${motionEvent.x} ${pressedX - motionEvent.x}"
-//                                                )
-                                                if (motionEvent.x < -2000) {
+                                                if (motionEvent.x < -450) {
                                                     Log.d("move",
                                                         "canceled ${motionEvent.x} ${pressedX}")
-                                                    audioFile = null
+                                                    fileName = ""
                                                 }
 
                                             }
@@ -385,9 +390,8 @@ fun ChatBox(
                                     }
                             )
                         }
-
-
                     }
+
                     Sources.CONTACTS -> {
                         SourceImage(
                             icon = R.drawable.baseline_person_outline_24,
@@ -413,7 +417,7 @@ fun ChatBox(
                 })
             ) {
                 Icon(
-                    imageVector = ImageVector.vectorResource(R.drawable.ic_send),
+                    imageVector = ImageVector.vectorResource(icon),
                     contentDescription = null,
                     modifier = Modifier.padding(dimensionResource(id = R.dimen.spacing_20))
                 )
@@ -421,7 +425,6 @@ fun ChatBox(
         }
     }
 }
-
 
 @Composable
 fun SourceImage(icon: Int, isDenied: Boolean, onClickIcon: () -> Unit) {
@@ -449,13 +452,11 @@ fun SourceImage(icon: Int, isDenied: Boolean, onClickIcon: () -> Unit) {
 
 }
 
-
 private fun String.Companion.empty() = ""
-
 
 @Composable
 fun DisplayContacts(
-    contacts: List<ContactData>, selectedContactsCallBack: (List<ContactData>) -> Unit
+    contacts: List<ContactData>, selectedContactsCallBack: (List<ContactData>) -> Unit,
 ) {
 
     val selectedContacts: MutableList<ContactData> = mutableListOf()
@@ -560,6 +561,7 @@ fun AudioRecordingUi() {
             .width(230.dp)
             .height(50.dp)
             .padding(horizontal = 10.dp)
+            .padding(top = 10.dp)
     ) {
         Icon(
             imageVector = ImageVector.vectorResource(id = R.drawable.baseline_delete_24),
