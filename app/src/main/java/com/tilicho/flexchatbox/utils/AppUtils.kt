@@ -2,12 +2,17 @@ package com.tilicho.flexchatbox.utils
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.RectF
+import android.graphics.pdf.PdfDocument
 import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Build
 import android.os.CancellationSignal
 import android.util.Size
 import com.tilicho.flexchatbox.enums.MediaType
+import java.io.File
+import java.util.*
+
 
 fun convertSecondsToMmSs(seconds: Long): String {
     val s = seconds % 60

@@ -1,6 +1,8 @@
 package com.tilicho.flexchatbox
 
+import android.content.ContentResolver
 import android.content.Context
+import android.content.res.AssetFileDescriptor
 import android.location.Location
 import android.media.AudioAttributes
 import android.media.MediaPlayer
@@ -8,11 +10,17 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.util.Log
+import android.text.method.LinkMovementMethod
+import android.text.util.Linkify
+import android.util.Patterns
+import android.webkit.MimeTypeMap
+import android.widget.TextView
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,7 +33,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Card
 import androidx.compose.material.Icon
@@ -48,12 +59,14 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.vectorResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.core.net.toUri
+import androidx.core.text.util.LinkifyCompat
 import coil.compose.rememberImagePainter
 import com.google.android.exoplayer2.ExoPlayer
 import com.google.android.exoplayer2.MediaItem
@@ -74,15 +87,28 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             val context = this@MainActivity
-            var images by remember {
-                mutableStateOf(mutableListOf<Uri>())
+            var cameraImages by remember {
+                mutableStateOf(Uri.EMPTY)
             }
-            var textFieldValue by remember {
-                mutableStateOf("")
+
+            var cameraVideos by remember {
+                mutableStateOf(Uri.EMPTY)
+            }
+
+            var source by remember {
+                mutableStateOf(Sources.CAMERA)
+            }
+
+            var messages by remember {
+                mutableStateOf(mutableListOf<String?>(null))
             }
 
             var listOfLocations by remember {
                 mutableStateOf(mutableListOf<Location>())
+            }
+
+            var location by remember {
+                mutableStateOf<com.tilicho.flexchatbox.Location?>(null)
             }
 
             var galleryUriList by remember {
@@ -119,6 +145,90 @@ class MainActivity : ComponentActivity() {
                 mutableStateOf(false)
             }
             FlexChatBoxTheme {
+                /*Column(
+                    modifier = Modifier
+                        .padding(10.dp)
+                        .fillMaxSize(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Button(onClick = { flexItemsDialog = true }) {
+                        Text(text = "Select Flex")
+                    }
+                    if (flexItemsDialog) {
+                        DisplayFlexItems(selectedFlex = {
+                            selectedFlex = it
+                        }, setFlexItemDialog = {
+                            flexItemsDialog = it
+                        })
+                    }
+
+                    var displayState by remember {
+                        mutableStateOf(false)
+                    }
+                    if (displayState) {
+                        DisplayContacts(contacts = contacts)
+                    }
+
+                    Spacer(modifier = Modifier.weight(1f))
+                    if (selectedFlex == Sources.LOCATION) {
+                        DisplayLocation(location = location)
+                    } else if (selectedFlex == Sources.VOICE) {
+                        AudioPlayer(mediaPlayer = mediaPlayer)
+                    } else if (selectedFlex == Sources.CAMERA) {
+                        DisplayImage(image = imageUri)
+                    } else if (selectedFlex == Sources.CONTACTS) {
+                        Column(modifier = Modifier.padding(bottom = 300.dp)) {
+                            Button(onClick = {
+                                displayState = true
+                            }) {
+                                Text(text = "Display contacts")
+                            }
+                        }
+
+
+                    }
+
+
+
+                    ChatBox(
+                        context = this@MainActivity,
+                        source = selectedFlex,
+                        cameraImage = { uri ->
+                            imageUri = uri
+                        },
+                        onClickSend = { inputValue, _location ->
+                            textFieldValue = inputValue
+                            location = _location
+                        },
+                        selectedPhotosOrVideos = { uriList ->
+                            galleryUriList = uriList.toMutableStateList()
+                        },
+                        recordedAudio = {
+                            MediaPlayer.create(this@MainActivity, it.toUri()).apply {
+                                mediaPlayer = this
+                            }
+                        },
+                        selectedContactsCallBack = {
+                            contacts = it
+                        }
+                    )
+
+                }*/
+
+                /*val singapore = LatLng(1.35, 103.87)
+                val cameraPositionState = rememberCameraPositionState {
+                    position = CameraPosition.fromLatLngZoom(singapore, 10f)
+                }
+                GoogleMap(
+                    modifier = Modifier.fillMaxSize(),
+                    cameraPositionState = cameraPositionState
+                ) {
+                    Marker(
+                        state = MarkerState(position = singapore),
+                        title = "Singapore",
+                        snippet = "Marker in Singapore"
+                    )
+                }*/
 
                 Scaffold(topBar = {
                     DisplayFlexItems(selectedFlex = {
@@ -135,11 +245,6 @@ class MainActivity : ComponentActivity() {
                         ChatBox(
                             context = context,
                             source = selectedFlex,
-                            cameraImage = {
-                                val updatedImages = images.toMutableList()
-                                updatedImages.add(it)
-                                images = updatedImages
-                            },
                             selectedPhotosOrVideos = {
                                 galleryItemsUriList = it.toMutableStateList()
                             },
@@ -236,19 +341,35 @@ class MainActivity : ComponentActivity() {
                                 }*/
                             },
                             onClickSend = { it1, it2 ->
-                                textFieldValue = it1
-                                displayText = true
-                                val updatedLocations = listOfLocations.toMutableList()
-                                if (it2 != null) {
-                                    updatedLocations.add(it2)
+                                it1.let {
+                                    if (it != "") {
+                                        messages.add(it)
+                                        if (displayText == false)
+                                            displayText = true
+                                    }
                                 }
-                                listOfLocations = updatedLocations
+                                it2.let {
+                                    if (it != null) {
+                                        location = it
+                                    }
+                                }
                             },
                             selectedContactsCallBack = {
                                 val currContactList = it.toMutableList()
                                 currContactList.addAll(currContactList.size - 1, contacts)
 
                                 contacts = currContactList
+                            },
+                            selectedFiles = {
+                                galleryItemsUriList = it.toMutableStateList()
+                            },
+                            camera = { _source, uri ->
+                                source = _source
+                                if (_source == Sources.CAMERA) {
+                                    cameraImages = uri
+                                } else {
+                                    cameraVideos = uri
+                                }
                             }
                         )
                     }
@@ -263,10 +384,56 @@ class MainActivity : ComponentActivity() {
                     ) {
                         when (selectedFlex) {
                             Sources.CONTACTS -> {
-                                DisplayContacts(contacts = contacts, chatText = textFieldValue)
+                                DisplayContacts(contacts = contacts)
                             }
                             Sources.CAMERA -> {
-                                DisplayImage(images = images)
+                                if (source == Sources.CAMERA) {
+                                    Image(
+                                        painter = rememberImagePainter(data = cameraImages),
+                                        contentDescription = null,
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.size(150.dp)
+                                    )
+                                } else {
+                                    var setPreviewDialog by remember {
+                                        mutableStateOf(false)
+                                    }
+
+                                    if (setPreviewDialog) {
+                                        Dialog(onDismissRequest = { setPreviewDialog = false }) {
+                                            Column(
+                                                modifier = Modifier
+                                                    .size(300.dp)
+                                                    .clickable(onClick = {
+                                                        setPreviewDialog = false
+                                                    })
+                                            ) {
+                                                VideoView(context = context,
+                                                    videoUri = cameraVideos.toString())
+                                            }
+                                        }
+                                    }
+
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Image(
+                                            painter = rememberImagePainter(data = getThumbnail(context,
+                                                cameraVideos)),
+                                            contentDescription = null,
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier
+                                                .size(150.dp)
+                                                .clickable(onClick = {
+                                                    setPreviewDialog = true
+                                                })
+                                        )
+                                        Image(
+                                            painter = rememberImagePainter(data = R.drawable.ic_play_grey),
+                                            contentDescription = null,
+                                            modifier = Modifier
+                                                .size(50.dp)
+                                        )
+                                    }
+                                }
                             }
                             Sources.VOICE -> {
                                 if (true) {
@@ -277,12 +444,30 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
                             Sources.LOCATION -> {
-                                DisplayLocation(locations = listOfLocations)
+                                location?.let { it1 ->
+                                    DisplayLocation(
+                                        modifier = Modifier
+                                            .padding(10.dp)
+                                            .fillMaxWidth()
+                                            .wrapContentHeight(),
+                                        it1
+                                    )
+                                }
                             }
                             Sources.GALLERY -> {
                                 DisplayGalleryItems(context, galleryItemsUriList)
                             }
+                            Sources.FILES -> {
+                                DisplayFileItems(context = context,
+                                    galleryItemsUriList = galleryItemsUriList)
+                            }
                             else -> {}
+                        }
+
+                        if (displayText) {
+                            Row(horizontalArrangement = Arrangement.End) {
+                                DisplayMessages(messages)
+                            }
                         }
                     }
                 }
@@ -295,23 +480,6 @@ class MainActivity : ComponentActivity() {
 fun DisplayChatText(text: String) {
     Card(modifier = Modifier.width(200.dp)) {
         Text(text = text, fontSize = 16.sp, modifier = Modifier.padding(10.dp))
-    }
-}
-
-@Composable
-fun DisplayLocation(locations: MutableList<Location>) {
-    LazyColumn() {
-        items(locations.size) {
-            val location = locations[it]
-            Card(shape = RoundedCornerShape(10.dp)) {
-                Column(modifier = Modifier.padding(10.dp)) {
-                    Text(text = "Latitude: ${location.latitude}", fontSize = 16.sp)
-                    Text(text = "Longitude: ${location.longitude}", fontSize = 16.sp)
-                    Text(text = "Altitude: ${location.altitude}", fontSize = 16.sp)
-                }
-            }
-            Spacer(modifier = Modifier.height(10.dp))
-        }
     }
 }
 
@@ -329,12 +497,12 @@ fun DisplayGalleryItems(context: Context, galleryItemsUriList: MutableList<Uri>?
 
     if (setPreviewDialog) {
         selectedGalleryItem?.let {
-            GalleryItemPreview(mediaType, mediaItem = it) {
+            GalleryItemPreview(context, mediaType, mediaItem = it) {
                 setPreviewDialog = it
             }
         }
     }
-    LazyColumn() {
+    LazyColumn {
         if (galleryItemsUriList != null) {
             items(galleryItemsUriList.size) {
                 val galleryItem = galleryItemsUriList[it]
@@ -355,7 +523,7 @@ fun DisplayGalleryItems(context: Context, galleryItemsUriList: MutableList<Uri>?
                                 })
                         )
                         Image(
-                            painter = rememberImagePainter(data = R.drawable.baseline_play_arrow_24),
+                            painter = rememberImagePainter(data = R.drawable.ic_play),
                             contentDescription = null,
                             modifier = Modifier
                                 .size(50.dp)
@@ -384,6 +552,7 @@ fun DisplayGalleryItems(context: Context, galleryItemsUriList: MutableList<Uri>?
 
 @Composable
 fun GalleryItemPreview(
+    context: Context,
     mediaType: MediaType?,
     mediaItem: Uri,
     setGalleryPreview: (Boolean) -> Unit,
@@ -409,17 +578,15 @@ fun GalleryItemPreview(
                         setGalleryPreview.invoke(false)
                     })
             ) {
-                VideoView(videoUri = mediaItem.toString())
+                VideoView(context = context, videoUri = mediaItem.toString())
             }
         }
     }
 }
 
 @Composable
-fun VideoView(videoUri: String) {
-    val context = LocalContext.current
-
-    val exoPlayer = ExoPlayer.Builder(LocalContext.current)
+fun VideoView(context: Context, videoUri: String) {
+    val exoPlayer = ExoPlayer.Builder(context)
         .build()
         .also { exoPlayer ->
             val mediaItem = MediaItem.Builder()
@@ -542,7 +709,7 @@ fun AudioPlayer(context: Context, file: File, mediaPlayer: MediaPlayer?) {
 
                     if (!isPlaying) {
                         Icon(
-                            painter = painterResource(id = R.drawable.baseline_play_arrow_24),
+                            painter = painterResource(id = R.drawable.ic_play),
                             contentDescription = "",
                             modifier = Modifier
                                 .size(30.dp)
@@ -560,7 +727,7 @@ fun AudioPlayer(context: Context, file: File, mediaPlayer: MediaPlayer?) {
                         )
                     } else {
                         Icon(
-                            painter = painterResource(R.drawable.baseline_pause_24),
+                            painter = painterResource(R.drawable.ic_pause),
                             contentDescription = "",
                             modifier = Modifier
                                 .size(30.dp)
@@ -596,7 +763,7 @@ fun DisplayImage(images: MutableList<Uri>?) {
 }
 
 @Composable
-fun DisplayContacts(contacts: List<ContactData>, chatText: String) {
+fun DisplayContacts(contacts: List<ContactData>) {
     LazyColumn(horizontalAlignment = Alignment.End) {
         items(contacts.size) {
             Card(elevation = 2.dp) {
@@ -607,14 +774,6 @@ fun DisplayContacts(contacts: List<ContactData>, chatText: String) {
             }
             Spacer(modifier = Modifier.height(10.dp))
 
-        }
-        if (chatText.isNotEmpty()) {
-            item {
-                Card(elevation = 2.dp) {
-                    Text(text = chatText, modifier = Modifier.padding(10.dp))
-                }
-
-            }
         }
     }
 }
@@ -651,7 +810,7 @@ fun DisplayFlexItems(
                 )
         )
 
-        Image(imageVector = ImageVector.vectorResource(com.tilicho.flexchatbox.R.drawable.ic_location),
+        Image(imageVector = ImageVector.vectorResource(R.drawable.ic_location),
             contentDescription = null,
             modifier = Modifier
                 .padding(10.dp)
@@ -680,7 +839,103 @@ fun DisplayFlexItems(
                     setFlexItemDialog.invoke(false)
                 })
         )
+        Image(
+            imageVector = ImageVector.vectorResource(id = R.drawable.ic_file),
+            contentDescription = null,
+            modifier = Modifier
+                .padding(10.dp)
+                .clickable(onClick = {
+                    selectedFlex.invoke(Sources.FILES)
+                    setFlexItemDialog.invoke(false)
+                })
+        )
     }
 
 }
 
+@Composable
+fun DisplayFileItems(context: Context, galleryItemsUriList: MutableList<Uri>?) {
+    LazyColumn {
+        galleryItemsUriList?.let {
+            itemsIndexed(galleryItemsUriList) { _, item ->
+                Box(contentAlignment = Alignment.BottomStart,
+                    modifier = Modifier
+                        .border(shape = RoundedCornerShape(10.dp),
+                            width = 1.dp,
+                            color = Color.Black)
+                        .wrapContentWidth()
+                        .wrapContentHeight()) {
+                    Row(verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(10.dp)) {
+                        Image(imageVector = ImageVector.vectorResource(id = R.drawable.ic_uploaded_file),
+                            contentDescription = null)
+
+                        Spacer(modifier = Modifier.width(4.dp))
+
+                        Column {
+                            val file = File(item.toString())
+                            var type = ""
+                            var fileSize = 0L
+                            context.let {
+                                val cR: ContentResolver = it.contentResolver
+                                val mime = MimeTypeMap.getSingleton()
+                                type = mime.getExtensionFromMimeType(cR.getType(item)).toString()
+                                val fileDescriptor: AssetFileDescriptor? =
+                                    it.contentResolver.openAssetFileDescriptor(item, "r")
+                                fileSize = fileDescriptor?.length!!
+                            }
+                            val fileName = file.name + "." + type
+                            Text(text = fileName)
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(text = fileSize.toString() + "kb")
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(10.dp))
+            }
+        }
+    }
+}
+
+@Composable
+fun DisplayLocation(modifier: Modifier = Modifier, location: com.tilicho.flexchatbox.Location) {
+    val context = LocalContext.current
+    val customLinkifyTextView = remember {
+        TextView(context)
+    }
+    Column(modifier = Modifier
+        .border(width = 1.dp, color = Color.Black, shape = RoundedCornerShape(12.dp))
+        .width(300.dp)) {
+        Row(modifier = Modifier
+            .fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            AndroidView(modifier = modifier, factory = { customLinkifyTextView }) { textView ->
+                textView.text = location.url
+                LinkifyCompat.addLinks(textView, Linkify.ALL)
+                Linkify.addLinks(textView, Patterns.PHONE, "tel:",
+                    Linkify.sPhoneNumberMatchFilter, Linkify.sPhoneNumberTransformFilter)
+                textView.movementMethod = LinkMovementMethod.getInstance()
+            }
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            Text(text = location.location.toString(), textAlign = TextAlign.Center, modifier = Modifier.padding(4.dp))
+        }
+    }
+}
+
+@Composable
+fun DisplayMessages(messages: MutableList<String?>) {
+    LazyColumn(horizontalAlignment = Alignment.End) {
+        itemsIndexed(messages) { index, item ->
+            if (item != "" && item != null) {
+                Box(modifier = Modifier
+                    .padding(10.dp)
+                    .border(width = 1.dp, color = Color.Black, shape = RoundedCornerShape(10.dp)))
+                {
+                    Text(text = item, fontSize = 16.sp, modifier = Modifier.padding(10.dp))
+                }
+            }
+        }
+    }
+}

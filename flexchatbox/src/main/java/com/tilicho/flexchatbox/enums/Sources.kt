@@ -1,9 +1,12 @@
 package com.tilicho.flexchatbox.enums
 
 enum class Sources {
-    CAMERA,
     GALLERY,
     VOICE,
     LOCATION,
-    CONTACTS
+    CONTACTS,
+    FILES,
+    CAMERA,
+    VIDEO,
+    TEXT
 }
