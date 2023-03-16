@@ -4,7 +4,6 @@ import android.Manifest
 import android.app.Activity
 import android.content.Context
 import android.graphics.Bitmap
-import android.location.Location
 import android.net.Uri
 import android.os.Build
 import android.os.Handler
@@ -68,7 +67,6 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
@@ -338,7 +336,10 @@ fun ChatBox(
                                     val _location = getLocation(context)
                                     val latLong =
                                         (_location?.latitude).toString() + "," + (_location?.longitude).toString()
-                                    location = com.tilicho.flexchatbox.Location(_location, LOCATION_URL + latLong)
+                                    location = com.tilicho.flexchatbox.Location(
+                                        _location,
+                                        LOCATION_URL + latLong
+                                    )
                                     onClickSend.invoke("", location)
                                 } else {
                                     requestPermission(
@@ -467,13 +468,17 @@ fun ChatBox(
                             isDenied = isDeniedPermission,
                             onClickIcon = {
                                 // Check whether permission is granted or not, if not request permission
-                                if (checkPermission(context,
-                                        Manifest.permission.READ_EXTERNAL_STORAGE)
+                                if (checkPermission(
+                                        context,
+                                        Manifest.permission.READ_EXTERNAL_STORAGE
+                                    )
                                 ) {
                                     openFiles(context, fileLauncher)
                                 } else {
-                                    requestPermission(permissionLauncher,
-                                        Manifest.permission.READ_EXTERNAL_STORAGE)
+                                    requestPermission(
+                                        permissionLauncher,
+                                        Manifest.permission.READ_EXTERNAL_STORAGE
+                                    )
                                 }
                             })
                     }
@@ -679,12 +684,16 @@ fun GalleryPreviewUI(
         mutableStateOf<MutableList<Uri>?>(items as MutableList<Uri>)
     }
 
-    Column(modifier = Modifier
-        .background(color = Color.Black)
-        .fillMaxSize()) {
-        Row(modifier = Modifier
-            .fillMaxWidth()
-            .padding(dimensionResource(id = R.dimen.spacing_20))) {
+    Column(
+        modifier = Modifier
+            .background(color = Color.Black)
+            .fillMaxSize()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(dimensionResource(id = R.dimen.spacing_20))
+        ) {
             Image(imageVector = ImageVector.vectorResource(R.drawable.ic_close),
                 contentDescription = null,
                 modifier = Modifier
@@ -713,9 +722,10 @@ fun GalleryPreviewUI(
 
         Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_90)))
 
-        LazyRow(modifier = Modifier
-            .fillMaxWidth()
-            .wrapContentHeight(),
+        LazyRow(
+            modifier = Modifier
+                .fillMaxWidth()
+                .wrapContentHeight(),
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -726,13 +736,18 @@ fun GalleryPreviewUI(
                         contentDescription = "avatar",
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
-                            .size(size = if (previewUri == item) dimensionResource(id = R.dimen.spacing_100) else dimensionResource(
-                                id = R.dimen.spacing_90))
+                            .size(
+                                size = if (previewUri == item) dimensionResource(id = R.dimen.spacing_100) else dimensionResource(
+                                    id = R.dimen.spacing_90
+                                )
+                            )
                             .clickable {
                                 previewUri = item
                             }
-                            .border(width = 2.dp,
-                                color = if (previewUri == item) Color(0xff0096FF) else Color.Transparent)
+                            .border(
+                                width = 2.dp,
+                                color = if (previewUri == item) Color(0xff0096FF) else Color.Transparent
+                            )
                     )
                 } else if (getMediaType(context, item) == MediaType.MediaTypeVideo) {
                     Box(contentAlignment = Alignment.Center) {
@@ -743,13 +758,18 @@ fun GalleryPreviewUI(
                                 contentDescription = "avatar",
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier
-                                    .size(size = if (previewUri == item) dimensionResource(id = R.dimen.spacing_100) else dimensionResource(
-                                        id = R.dimen.spacing_90))
+                                    .size(
+                                        size = if (previewUri == item) dimensionResource(id = R.dimen.spacing_100) else dimensionResource(
+                                            id = R.dimen.spacing_90
+                                        )
+                                    )
                                     .clickable {
                                         previewUri = item
                                     }
-                                    .border(width = 2.dp,
-                                        color = if (previewUri == item) Color(0xff0096FF) else Color.Transparent)
+                                    .border(
+                                        width = 2.dp,
+                                        color = if (previewUri == item) Color(0xff0096FF) else Color.Transparent
+                                    )
                             )
                         }
 
@@ -768,19 +788,20 @@ fun GalleryPreviewUI(
         Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_50)))
 
         Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.TopEnd) {
-                if (getMediaType(context, previewUri) == MediaType.MediaTypeImage) {
-                    Image(painter = rememberAsyncImagePainter(model = previewUri),
-                        contentDescription = null,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(473.dp)
-                            .clip(RectangleShape)
-                    )
-                } else if (getMediaType(context, previewUri) == MediaType.MediaTypeVideo) {
-                    Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_100)))
-                    VideoView(context, videoUri = previewUri.toString())
-                    Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_100)))
-                }
+            if (getMediaType(context, previewUri) == MediaType.MediaTypeImage) {
+                Image(
+                    painter = rememberAsyncImagePainter(model = previewUri),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(473.dp)
+                        .clip(RectangleShape)
+                )
+            } else if (getMediaType(context, previewUri) == MediaType.MediaTypeVideo) {
+                Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_100)))
+                VideoView(context, videoUri = previewUri.toString())
+                Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_100)))
+            }
 
         }
 
@@ -792,9 +813,12 @@ fun GalleryPreviewUI(
                 modifier = Modifier.clickable {
                     galleryLauncher.launch(GALLERY_INPUT_TYPE)
                 }) {
-                Image(imageVector = ImageVector.vectorResource(id = R.drawable.ic_gallery),
+                Image(
+                    imageVector = ImageVector.vectorResource(id = R.drawable.ic_gallery),
                     contentDescription = null, modifier = Modifier.padding(
-                        dimensionResource(id = R.dimen.spacing_30)))
+                        dimensionResource(id = R.dimen.spacing_30)
+                    )
+                )
             }
         }
 
@@ -824,12 +848,16 @@ fun GalleryPreviewDialog(
     galleryLauncher: ManagedActivityResultLauncher<String, List<@JvmSuppressWildcards Uri>>,
     onDismissCallback: (Boolean) -> Unit,
 ) {
-    Dialog(onDismissRequest = {
-        onDismissCallback(false)
-    },
-        properties = DialogProperties(usePlatformDefaultWidth = false,
+    Dialog(
+        onDismissRequest = {
+            onDismissCallback(false)
+        },
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
             dismissOnBackPress = false,
-            dismissOnClickOutside = false))
+            dismissOnClickOutside = false
+        )
+    )
     {
         GalleryPreviewUI(context, items = galleryList, galleryLauncher = galleryLauncher) {
             onDismissCallback(it)
@@ -839,7 +867,7 @@ fun GalleryPreviewDialog(
 
 @Composable
 fun VideoView(context: Context, videoUri: String) {
-    if (context == null ) return
+    if (context == null) return
 
     val exoPlayer = ExoPlayer.Builder(context)
         .build()
