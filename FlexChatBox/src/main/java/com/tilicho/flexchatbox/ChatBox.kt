@@ -119,7 +119,7 @@ fun ChatBox(
     source: Sources,
     selectedPhotosOrVideos: (List<Uri>) -> Unit,
     recordedAudio: (File) -> Unit,
-    onClickSend: (String, com.tilicho.flexchatbox.Location?) -> Unit,
+    onClickSend: (String, Location?) -> Unit,
     selectedContactsCallBack: (List<ContactData>) -> Unit,
     selectedFiles: (List<Uri>) -> Unit,
     camera: (Sources, Uri) -> Unit,
@@ -127,7 +127,7 @@ fun ChatBox(
     var textFieldValue by rememberSaveable { mutableStateOf("") }
 
     var location by remember {
-        mutableStateOf<com.tilicho.flexchatbox.Location?>(null)
+        mutableStateOf<Location?>(null)
     }
 
     var galleryList by remember {
@@ -141,9 +141,6 @@ fun ChatBox(
     var audioFile by remember {
         mutableStateOf<File?>(null)
     }
-    /*by remember {
-       mutableStateOf<File?>(null)
-   }*/
 
     var isPressed by remember {
         mutableStateOf(false)
@@ -360,7 +357,7 @@ fun ChatBox(
                                     val _location = getLocation(context)
                                     val latLong =
                                         (_location?.latitude).toString() + "," + (_location?.longitude).toString()
-                                    location = com.tilicho.flexchatbox.Location(
+                                    location = Location(
                                         _location,
                                         LOCATION_URL + latLong
                                     )
@@ -415,11 +412,6 @@ fun ChatBox(
                                                         try {
                                                             Handler(Looper.getMainLooper()).postDelayed(
                                                                 {
-                                                                    /*audioFile?.let { it1 ->
-                                                                        recordedAudio.invoke(
-                                                                            it1
-                                                                        )
-                                                                    }*/
                                                                     if (fileName.isNotEmpty()) {
                                                                         recordedAudio.invoke(File(
                                                                             context.cacheDir,
@@ -725,33 +717,6 @@ fun AudioRecordingUi() {
         }
     }
 }
-
-@Composable
-fun Drag2DGestures() {
-    val size by remember { mutableStateOf(400.dp) }
-    val offsetX = remember { mutableStateOf(0f) }
-    val offsetY = remember { mutableStateOf(0f) }
-    Box(modifier = Modifier.size(size)) {
-        Box(
-            Modifier
-                .offset { IntOffset(offsetX.value.roundToInt(), offsetY.value.roundToInt()) }
-                .background(Color.Blue)
-                .size(50.dp)
-                .pointerInput(Unit) {
-                    detectDragGestures { change, dragAmount ->
-                        change.consumeAllChanges()
-                        offsetX.value = (offsetX.value + dragAmount.x)
-                            .coerceIn(0f, size.value - 50.dp.toPx())
-
-                        offsetY.value = (offsetY.value + dragAmount.y)
-                            .coerceIn(0f, size.value - 50.dp.toPx())
-                    }
-                }
-        )
-        Text("Drag the box around", Modifier.align(Alignment.Center))
-    }
-}
-
 
 @RequiresApi(Build.VERSION_CODES.Q)
 @Composable

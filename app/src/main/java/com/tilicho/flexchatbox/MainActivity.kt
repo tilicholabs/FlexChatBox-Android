@@ -155,92 +155,6 @@ class MainActivity : ComponentActivity() {
                 mutableStateOf(false)
             }
             FlexChatBoxTheme {
-
-                /*Column(
-                    modifier = Modifier
-                        .padding(10.dp)
-                        .fillMaxSize(),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Button(onClick = { flexItemsDialog = true }) {
-                        Text(text = "Select Flex")
-                    }
-                    if (flexItemsDialog) {
-                        DisplayFlexItems(selectedFlex = {
-                            selectedFlex = it
-                        }, setFlexItemDialog = {
-                            flexItemsDialog = it
-                        })
-                    }
-
-                    var displayState by remember {
-                        mutableStateOf(false)
-                    }
-                    if (displayState) {
-                        DisplayContacts(contacts = contacts)
-                    }
-
-                    Spacer(modifier = Modifier.weight(1f))
-                    if (selectedFlex == Sources.LOCATION) {
-                        DisplayLocation(location = location)
-                    } else if (selectedFlex == Sources.VOICE) {
-                        AudioPlayer(mediaPlayer = mediaPlayer)
-                    } else if (selectedFlex == Sources.CAMERA) {
-                        DisplayImage(image = imageUri)
-                    } else if (selectedFlex == Sources.CONTACTS) {
-                        Column(modifier = Modifier.padding(bottom = 300.dp)) {
-                            Button(onClick = {
-                                displayState = true
-                            }) {
-                                Text(text = "Display contacts")
-                            }
-                        }
-
-
-                    }
-
-
-
-                    ChatBox(
-                        context = this@MainActivity,
-                        source = selectedFlex,
-                        cameraImage = { uri ->
-                            imageUri = uri
-                        },
-                        onClickSend = { inputValue, _location ->
-                            textFieldValue = inputValue
-                            location = _location
-                        },
-                        selectedPhotosOrVideos = { uriList ->
-                            galleryUriList = uriList.toMutableStateList()
-                        },
-                        recordedAudio = {
-                            MediaPlayer.create(this@MainActivity, it.toUri()).apply {
-                                mediaPlayer = this
-                            }
-                        },
-                        selectedContactsCallBack = {
-                            contacts = it
-                        }
-                    )
-
-                }*/
-
-                /*val singapore = LatLng(1.35, 103.87)
-                val cameraPositionState = rememberCameraPositionState {
-                    position = CameraPosition.fromLatLngZoom(singapore, 10f)
-                }
-                GoogleMap(
-                    modifier = Modifier.fillMaxSize(),
-                    cameraPositionState = cameraPositionState
-                ) {
-                    Marker(
-                        state = MarkerState(position = singapore),
-                        title = "Singapore",
-                        snippet = "Marker in Singapore"
-                    )
-                }*/
-
                 Scaffold(topBar = {
                     DisplayFlexItems(selectedFlex = {
                         selectedFlex = it
@@ -268,7 +182,7 @@ class MainActivity : ComponentActivity() {
                             },
                             recordedAudio = {
                                 file = it
-                                val myUri = it.toUri()// initialize Uri here
+                                val myUri = it.toUri()
                                 if (mediaPlayer != null) {
                                     mediaPlayer?.release()
                                 }
@@ -279,8 +193,6 @@ class MainActivity : ComponentActivity() {
                                             .setUsage(AudioAttributes.USAGE_MEDIA)
                                             .build()
                                     )
-//                                    setDataSource(applicationContext, myUri)
-//                                    prepare()
                                 }
                                 val inputStream = FileInputStream(file)
                                 mediaPlayer?.setDataSource(inputStream.getFD())
@@ -295,67 +207,7 @@ class MainActivity : ComponentActivity() {
                                     // TODO Auto-generated catch block
                                     e.printStackTrace()
                                 }
-                                /*MediaPlayer.create(context, it.toUri()).apply {
-                                    mediaPlayer = this
-                                    setAudioPlayerState = true
-                                }*/
-
-
                                 Log.d("sjknf", "${it.toUri().toString()} ${it.exists()}")
-
-                                /*val mediaPlayer = MediaPlayer()
-                                val fis = FileInputStream(it)
-                                mediaPlayer.setDataSource(fis.getFD())
-                                mediaPlayer.prepareAsync()
-                                val updatedMediaPlayers = mediaPlayers.toMutableList()
-                                    updatedMediaPlayers.add(mediaPlayer)
-                                    mediaPlayers = updatedMediaPlayers
-                                    setAudioPlayerState = true*/
-//                                MediaPlayer.create(this@MainActivity, it.toUri()).apply {
-//                                    val updatedMediaPlayers = mediaPlayers.toMutableList()
-//                                    updatedMediaPlayers.add(this)
-//                                    mediaPlayers = updatedMediaPlayers
-//                                    setAudioPlayerState = true
-//                                }
-//                                val mediaPlayer = MediaPlayer()//.create(this@MainActivity, Uri.fromFile(it))
-//                                    mediaPlayer.setDataSource(it.toUri().toString())
-//                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-//                                        this.setAudioStreamType(AudioManager.STREAM_MUSIC)
-//                                    } else {
-//                                        this.setAudioStreamType(AudioManager.STREAM_MUSIC)
-//                                    }
-
-//                                mediaPlayer.prepare()
-//                                val updatedMediaPlayers = mediaPlayers.toMutableList()
-//                                updatedMediaPlayers.add(mediaPlayer)
-//                                mediaPlayers = updatedMediaPlayers
-//                                setAudioPlayerState = true
-                                // mediaPlayer.prepareAsync()
-
-
-//                                mediaPlayerView.prepare()
-                                //mediaPlayerView.setDataSource(context, Uri.fromFile(it))
-
-                                //mediaPlayerView.prepare()
-//                                    .apply {
-
-//                                    prepare()
-
-                                // val mediaPlayer = MediaPlayer()
-                                /*var fis: FileInputStream? = null
-                                try {
-                                    fis = FileInputStream(it)
-                                    mediaPlayer.setDataSource(this@MainActivity, it.toUri())
-                                    mediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC)
-                                    mediaPlayer.prepare()
-                                } finally {
-                                    if (fis != null) {
-                                        try {
-                                            fis.close()
-                                        } catch (ignore: IOException) {
-                                        }
-                                    }
-                                }*/
                             },
                             onClickSend = { it1, it2 ->
                                 it1.let {
@@ -624,8 +476,6 @@ fun AudioPlayer(context: Context, file: File, mediaPlayer: MediaPlayer?) {
                 modifier = Modifier
                     .size(50.dp)
             )
-
-            //mediaPlayers[index].prepareAsync()
             mediaPlayer?.setOnCompletionListener {
                 isPlaying = false
                 durationScale = mediaPlayer.getDurationInMmSs()
@@ -670,75 +520,6 @@ fun AudioPlayer(context: Context, file: File, mediaPlayer: MediaPlayer?) {
             }
         }
     }
-    /*LazyColumn {
-        items(mediaPlayer.size) { index ->
-            var durationScale by remember {
-                mutableStateOf(mediaPlayer[index].getDurationInMmSs())
-            }
-            var isPlaying by remember {
-                mutableStateOf(false)
-            }
-            val handler = Handler()
-
-            Card(
-                border = BorderStroke(width = Dp.Hairline, color = Color.Black),
-                shape = RoundedCornerShape(10.dp)
-            ) {
-                Row(
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalAlignment = Alignment.CenterVreertically
-                ) {
-                    Icon(
-                        imageVector = ImageVector.vectorResource(id = R.drawable.ic_recorder),
-                        contentDescription = null,
-                        modifier = Modifier
-                            .size(50.dp)
-                    )
-
-                    //mediaPlayers[index].prepareAsync()
-                    mediaPlayer[index].setOnCompletionListener {
-                        isPlaying = false
-                        durationScale = mediaPlayer[index].getDurationInMmSs()
-                    }
-
-                    Text(text = "Audio $durationScale")
-
-                    if (!isPlaying) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_play),
-                            contentDescription = "",
-                            modifier = Modifier
-                                .size(30.dp)
-                                .clickable(onClick = {
-                                    mediaPlayer[index].start()
-                                    object : Runnable {
-                                        override fun run() {
-                                            durationScale =
-                                                mediaPlayer[index].getCurrentPositionInMmSs()
-                                            handler.postDelayed(this, 1000)
-                                        }
-                                    }.run()
-                                    isPlaying = true
-                                })
-                        )
-                    } else {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_pause),
-                            contentDescription = "",
-                            modifier = Modifier
-                                .size(30.dp)
-                                .clickable(onClick = {
-                                    mediaPlayer[index].pause()
-                                    isPlaying = false
-                                })
-                        )
-                    }
-                }
-            }
-            Spacer(modifier = Modifier.height(10.dp))
-        }
-
-    }*/
 }
 
 @Composable
@@ -748,22 +529,6 @@ fun DisplayCameraItems(
     cameraImages: MutableList<Uri>?,
     cameraVideos: MutableList<Uri>?,
 ) {
-    /*LazyColumn() {
-        images?.size?.let { it ->
-            items(it) {
-                Card(shape = RoundedCornerShape(10.dp),
-                    border = BorderStroke(1.dp, color = Color.Black)) {
-                    Image(
-                        painter = rememberImagePainter(data = images[it]),
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.size(150.dp).padding(10.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.height(10.dp))
-            }
-        }
-    }*/
     if (source == Sources.CAMERA) {
         LazyColumn() {
             cameraImages?.size?.let {
