@@ -7,6 +7,7 @@ import android.location.Location
 import android.media.AudioAttributes
 import android.media.MediaPlayer
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.util.Log
@@ -17,6 +18,7 @@ import android.webkit.MimeTypeMap
 import android.widget.TextView
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -47,9 +49,11 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -59,7 +63,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.vectorResource
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -81,25 +84,27 @@ import java.io.File
 import java.io.FileInputStream
 import java.io.IOException
 
+import java.util.Calendar
+import java.util.Date
 
 class MainActivity : ComponentActivity() {
+    @RequiresApi(Build.VERSION_CODES.Q)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             val context = this@MainActivity
             var cameraImages by remember {
-                mutableStateOf(Uri.EMPTY)
+                mutableStateOf<MutableList<Uri>?>(null)
             }
-
             var cameraVideos by remember {
-                mutableStateOf(Uri.EMPTY)
+                mutableStateOf<MutableList<Uri>?>(null)
             }
 
             var source by remember {
                 mutableStateOf(Sources.CAMERA)
             }
 
-            var messages by remember {
+            val messages by remember {
                 mutableStateOf(mutableListOf<String?>(null))
             }
 
@@ -137,6 +142,8 @@ class MainActivity : ComponentActivity() {
             }
             var contacts: MutableList<ContactData> by remember { mutableStateOf(mutableListOf()) }
 
+            val contactsMap = remember { mutableStateMapOf<String, MutableList<ContactData>>() }
+
             var setAudioPlayerState by remember {
                 mutableStateOf(false)
             }
@@ -144,7 +151,11 @@ class MainActivity : ComponentActivity() {
             var displayText by remember {
                 mutableStateOf(false)
             }
+            var displayCameraItems by remember {
+                mutableStateOf(false)
+            }
             FlexChatBoxTheme {
+
                 /*Column(
                     modifier = Modifier
                         .padding(10.dp)
@@ -246,11 +257,18 @@ class MainActivity : ComponentActivity() {
                             context = context,
                             source = selectedFlex,
                             selectedPhotosOrVideos = {
-                                galleryItemsUriList = it.toMutableStateList()
+                                val currGalleryItems = it.toMutableList()
+                                galleryItemsUriList?.let { it1 ->
+                                    currGalleryItems.addAll(
+                                        currGalleryItems.size - 1,
+                                        it1
+                                    )
+                                }
+                                galleryItemsUriList = currGalleryItems
                             },
                             recordedAudio = {
                                 file = it
-                                val myUri =  it.toUri()// initialize Uri here
+                                val myUri = it.toUri()// initialize Uri here
                                 if (mediaPlayer != null) {
                                     mediaPlayer?.release()
                                 }
@@ -312,8 +330,7 @@ class MainActivity : ComponentActivity() {
 //                                updatedMediaPlayers.add(mediaPlayer)
 //                                mediaPlayers = updatedMediaPlayers
 //                                setAudioPlayerState = true
-                               // mediaPlayer.prepareAsync()
-
+                                // mediaPlayer.prepareAsync()
 
 
 //                                mediaPlayerView.prepare()
@@ -324,7 +341,7 @@ class MainActivity : ComponentActivity() {
 
 //                                    prepare()
 
-                               // val mediaPlayer = MediaPlayer()
+                                // val mediaPlayer = MediaPlayer()
                                 /*var fis: FileInputStream? = null
                                 try {
                                     fis = FileInputStream(it)
@@ -355,10 +372,9 @@ class MainActivity : ComponentActivity() {
                                 }
                             },
                             selectedContactsCallBack = {
+                                val currentTime: Date = Calendar.getInstance().getTime()
                                 val currContactList = it.toMutableList()
-                                currContactList.addAll(currContactList.size - 1, contacts)
-
-                                contacts = currContactList
+                                contactsMap[currentTime.toString()] = currContactList
                             },
                             selectedFiles = {
                                 galleryItemsUriList = it.toMutableStateList()
@@ -366,10 +382,15 @@ class MainActivity : ComponentActivity() {
                             camera = { _source, uri ->
                                 source = _source
                                 if (_source == Sources.CAMERA) {
-                                    cameraImages = uri
+                                    val currimages = mutableListOf<Uri>(uri).toMutableList()
+                                    cameraImages?.let { currimages.addAll(currimages.size - 1, it) }
+                                    cameraImages = currimages
                                 } else {
-                                    cameraVideos = uri
+                                    val currVideos = mutableListOf<Uri>(uri).toMutableList()
+                                    cameraVideos?.let { currVideos.addAll(currVideos.size - 1, it) }
+                                    cameraVideos = currVideos
                                 }
+                                displayCameraItems = true
                             }
                         )
                     }
@@ -384,60 +405,25 @@ class MainActivity : ComponentActivity() {
                     ) {
                         when (selectedFlex) {
                             Sources.CONTACTS -> {
-                                DisplayContacts(contacts = contacts)
+                                DisplayContactsUI(contactsMap)
                             }
                             Sources.CAMERA -> {
-                                if (source == Sources.CAMERA) {
-                                    Image(
-                                        painter = rememberImagePainter(data = cameraImages),
-                                        contentDescription = null,
-                                        contentScale = ContentScale.Crop,
-                                        modifier = Modifier.size(150.dp)
+                                if (displayCameraItems) {
+                                    DisplayCameraItems(
+                                        source = source,
+                                        context = context,
+                                        cameraImages = cameraImages,
+                                        cameraVideos = cameraVideos
                                     )
-                                } else {
-                                    var setPreviewDialog by remember {
-                                        mutableStateOf(false)
-                                    }
-
-                                    if (setPreviewDialog) {
-                                        Dialog(onDismissRequest = { setPreviewDialog = false }) {
-                                            Column(
-                                                modifier = Modifier
-                                                    .size(300.dp)
-                                                    .clickable(onClick = {
-                                                        setPreviewDialog = false
-                                                    })
-                                            ) {
-                                                VideoView(context = context,
-                                                    videoUri = cameraVideos.toString())
-                                            }
-                                        }
-                                    }
-
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Image(
-                                            painter = rememberImagePainter(data = getThumbnail(context,
-                                                cameraVideos)),
-                                            contentDescription = null,
-                                            contentScale = ContentScale.Crop,
-                                            modifier = Modifier
-                                                .size(150.dp)
-                                                .clickable(onClick = {
-                                                    setPreviewDialog = true
-                                                })
-                                        )
-                                        Image(
-                                            painter = rememberImagePainter(data = R.drawable.ic_play_grey),
-                                            contentDescription = null,
-                                            modifier = Modifier
-                                                .size(50.dp)
-                                        )
-                                    }
                                 }
                             }
                             Sources.VOICE -> {
                                 if (true) {
-                                    file?.let { it1 -> AudioPlayer(this@MainActivity, it1, mediaPlayer) }
+                                    file?.let { it1 ->
+                                        AudioPlayer(this@MainActivity,
+                                            it1,
+                                            mediaPlayer)
+                                    }
                                     mediaPlayer?.let { it1 ->
 
                                     }
@@ -458,8 +444,10 @@ class MainActivity : ComponentActivity() {
                                 DisplayGalleryItems(context, galleryItemsUriList)
                             }
                             Sources.FILES -> {
-                                DisplayFileItems(context = context,
-                                    galleryItemsUriList = galleryItemsUriList)
+                                DisplayFileItems(
+                                    context = context,
+                                    galleryItemsUriList = galleryItemsUriList
+                                )
                             }
                             else -> {}
                         }
@@ -473,13 +461,6 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
-    }
-}
-
-@Composable
-fun DisplayChatText(text: String) {
-    Card(modifier = Modifier.width(200.dp)) {
-        Text(text = text, fontSize = 16.sp, modifier = Modifier.padding(10.dp))
     }
 }
 
@@ -511,17 +492,23 @@ fun DisplayGalleryItems(context: Context, galleryItemsUriList: MutableList<Uri>?
                     mediaType = MediaType.MediaTypeVideo
                     val videoThumbnail = getThumbnail(context = context, galleryItem)
                     Box(contentAlignment = Alignment.Center) {
-                        Image(
-                            painter = rememberImagePainter(data = videoThumbnail),
-                            contentDescription = null,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier
-                                .size(150.dp)
-                                .clickable(onClick = {
-                                    selectedGalleryItem = galleryItem
-                                    setPreviewDialog = true
-                                })
-                        )
+                        Card(
+                            shape = RoundedCornerShape(10.dp),
+                            border = BorderStroke(1.dp, color = Color.Black)
+                        ) {
+                            Image(
+                                painter = rememberImagePainter(data = videoThumbnail),
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier
+                                    .size(150.dp)
+                                    .padding(10.dp)
+                                    .clickable(onClick = {
+                                        selectedGalleryItem = galleryItem
+                                        setPreviewDialog = true
+                                    })
+                            )
+                        }
                         Image(
                             painter = rememberImagePainter(data = R.drawable.ic_play),
                             contentDescription = null,
@@ -532,17 +519,23 @@ fun DisplayGalleryItems(context: Context, galleryItemsUriList: MutableList<Uri>?
 
                 } else {
                     mediaType = MediaType.MediaTypeImage
-                    Image(
-                        painter = rememberImagePainter(data = galleryItem),
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .size(150.dp)
-                            .clickable(onClick = {
-                                selectedGalleryItem = galleryItem
-                                setPreviewDialog = true
-                            })
-                    )
+                    Card(
+                        shape = RoundedCornerShape(10.dp),
+                        border = BorderStroke(1.dp, color = Color.Black)
+                    ) {
+                        Image(
+                            painter = rememberImagePainter(data = galleryItem),
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .padding(10.dp)
+                                .size(150.dp)
+                                .clickable(onClick = {
+                                    selectedGalleryItem = galleryItem
+                                    setPreviewDialog = true
+                                })
+                        )
+                    }
                 }
                 Spacer(modifier = Modifier.height(10.dp))
             }
@@ -651,7 +644,10 @@ fun AudioPlayer(context: Context, file: File, mediaPlayer: MediaPlayer?) {
                             object : Runnable {
                                 override fun run() {
                                     try {
-                                        durationScale = mediaPlayer?.getCurrentPositionInMmSs().toString()
+                                        durationScale =
+                                            mediaPlayer
+                                                ?.getCurrentPositionInMmSs()
+                                                .toString()
                                     } catch (e: Exception) {
                                     }
                                     handler.postDelayed(this, 1000)
@@ -746,36 +742,166 @@ fun AudioPlayer(context: Context, file: File, mediaPlayer: MediaPlayer?) {
 }
 
 @Composable
-fun DisplayImage(images: MutableList<Uri>?) {
-    LazyColumn() {
+fun DisplayCameraItems(
+    source: Sources,
+    context: Context,
+    cameraImages: MutableList<Uri>?,
+    cameraVideos: MutableList<Uri>?,
+) {
+    /*LazyColumn() {
         images?.size?.let { it ->
             items(it) {
-                Image(
-                    painter = rememberImagePainter(data = images[it]),
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.size(150.dp)
-                )
+                Card(shape = RoundedCornerShape(10.dp),
+                    border = BorderStroke(1.dp, color = Color.Black)) {
+                    Image(
+                        painter = rememberImagePainter(data = images[it]),
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.size(150.dp).padding(10.dp)
+                    )
+                }
                 Spacer(modifier = Modifier.height(10.dp))
             }
         }
+    }*/
+    if (source == Sources.CAMERA) {
+        LazyColumn() {
+            cameraImages?.size?.let {
+                items(it) {
+                    Card(
+                        shape = RoundedCornerShape(10.dp),
+                        border = BorderStroke(1.dp, color = Color.Black)
+                    ) {
+                        Image(
+                            painter = rememberImagePainter(data = cameraImages[it]),
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .size(150.dp)
+                                .padding(10.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
+                }
+            }
+        }
+    } else {
+        LazyColumn() {
+            if (cameraVideos != null) {
+                items(cameraVideos.size) {
+                    var setPreviewDialog by remember {
+                        mutableStateOf(false)
+                    }
+
+                    if (setPreviewDialog) {
+                        Dialog(onDismissRequest = { setPreviewDialog = false }) {
+                            Column(
+                                modifier = Modifier
+                                    .size(300.dp)
+                                    .clickable(onClick = {
+                                        setPreviewDialog = false
+                                    })
+                            ) {
+                                VideoView(
+                                    context = context,
+                                    videoUri = cameraVideos.toString()
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(10.dp))
+                    }
+
+                    Box(contentAlignment = Alignment.Center) {
+                        Card(
+                            shape = RoundedCornerShape(10.dp),
+                            border = BorderStroke(1.dp, color = Color.Black)
+                        ) {
+                            Image(
+                                painter = rememberImagePainter(
+                                    data = getThumbnail(
+                                        context,
+                                        cameraVideos[it]
+                                    )
+                                ),
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier
+                                    .padding(10.dp)
+                                    .size(150.dp)
+                                    .clickable(onClick = {
+                                        setPreviewDialog = true
+                                    })
+                            )
+                        }
+                        Image(
+                            painter = rememberImagePainter(data = R.drawable.ic_play_grey),
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(50.dp)
+                        )
+                    }
+                }
+            }
+        }
+
     }
 }
 
 @Composable
-fun DisplayContacts(contacts: List<ContactData>) {
+fun DisplayContactsUI(
+    contactsMap: SnapshotStateMap<String, MutableList<ContactData>>,
+) {
+    val data = contactsMap.values.toList().toMutableList()
+    Log.d("contact_Data", data.size.toString())
     LazyColumn(horizontalAlignment = Alignment.End) {
-        items(contacts.size) {
-            Card(elevation = 2.dp) {
-                Column(modifier = Modifier.padding(10.dp)) {
-                    contacts[it].name?.let { it1 -> Text(text = it1) }
-                    contacts[it].mobileNumber?.let { it1 -> Text(text = it1) }
-                }
-            }
-            Spacer(modifier = Modifier.height(10.dp))
+        for (contacts in data) {
+            Log.d("contacts", contacts.toString())
+            item {
+                if (contacts.isNotEmpty() && contacts.size <= 1) {
+                    Card(
+                        shape = RoundedCornerShape(10.dp),
+                        border = BorderStroke(1.dp, color = Color.Black)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 15.dp, vertical = 10.dp)
+                        ) {
+                            Icon(
+                                imageVector = ImageVector.vectorResource(id = R.drawable.ic_person),
+                                contentDescription = "",
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column() {
+                                contacts[0].name?.let { it1 -> Text(text = it1) }
+                                contacts[0].mobileNumber?.let { it1 -> Text(text = it1) }
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(10.dp))
 
+                    }
+                } else if (contacts.isNotEmpty()) {
+                    Card(
+                        shape = RoundedCornerShape(10.dp),
+                        border = BorderStroke(1.dp, color = Color.Black)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 15.dp, vertical = 5.dp)
+                        ) {
+                            Icon(
+                                imageVector = ImageVector.vectorResource(id = R.drawable.ic_group),
+                                contentDescription = "",
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(text = "Contact 1 and ${contacts.size - 1} \n other contacts")
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(10.dp))
+            }
         }
     }
+
 }
 
 @Composable
@@ -858,17 +984,25 @@ fun DisplayFileItems(context: Context, galleryItemsUriList: MutableList<Uri>?) {
     LazyColumn {
         galleryItemsUriList?.let {
             itemsIndexed(galleryItemsUriList) { _, item ->
-                Box(contentAlignment = Alignment.BottomStart,
+                Box(
+                    contentAlignment = Alignment.BottomStart,
                     modifier = Modifier
-                        .border(shape = RoundedCornerShape(10.dp),
+                        .border(
+                            shape = RoundedCornerShape(10.dp),
                             width = 1.dp,
-                            color = Color.Black)
+                            color = Color.Black
+                        )
                         .wrapContentWidth()
-                        .wrapContentHeight()) {
-                    Row(verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(10.dp)) {
-                        Image(imageVector = ImageVector.vectorResource(id = R.drawable.ic_uploaded_file),
-                            contentDescription = null)
+                        .wrapContentHeight()
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(10.dp)
+                    ) {
+                        Image(
+                            imageVector = ImageVector.vectorResource(id = R.drawable.ic_uploaded_file),
+                            contentDescription = null
+                        )
 
                         Spacer(modifier = Modifier.width(4.dp))
 
@@ -903,21 +1037,48 @@ fun DisplayLocation(modifier: Modifier = Modifier, location: com.tilicho.flexcha
     val customLinkifyTextView = remember {
         TextView(context)
     }
+
     Column(modifier = Modifier
         .border(width = 1.dp, color = Color.Black, shape = RoundedCornerShape(12.dp))
         .width(300.dp)) {
-        Row(modifier = Modifier.fillMaxWidth().padding(start = 12.dp), horizontalArrangement = Arrangement.Start) {
-            Text(text = "${location.location?.longitude},${location.location?.latitude}",)
+        Row(modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 12.dp),
+            horizontalArrangement = Arrangement.Start) {
+            Text(text = "${location.location?.longitude},${location.location?.latitude}")
         }
 
         Row(modifier = Modifier
             .fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            AndroidView(modifier = modifier, factory = { customLinkifyTextView }) { textView ->
-                textView.text = location.url
-                LinkifyCompat.addLinks(textView, Linkify.ALL)
-                Linkify.addLinks(textView, Patterns.PHONE, "tel:",
-                    Linkify.sPhoneNumberMatchFilter, Linkify.sPhoneNumberTransformFilter)
-                textView.movementMethod = LinkMovementMethod.getInstance()
+
+            Column(
+                modifier = Modifier
+                    .border(width = 1.dp, color = Color.Black, shape = RoundedCornerShape(12.dp))
+                    .width(300.dp)
+                    .padding(6.dp)
+                    .wrapContentHeight()
+            ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(text = "Latitude: ${location.location?.latitude}", fontSize = 16.sp)
+                    Text(text = "Longitude: ${location.location?.longitude}", fontSize = 16.sp)
+                    Text(text = "Altitude: ${location.location?.altitude}", fontSize = 16.sp)
+                }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth(), horizontalArrangement = Arrangement.End
+                ) {
+                    AndroidView(modifier = modifier,
+                        factory = { customLinkifyTextView }) { textView ->
+                        textView.text = location.url
+                        LinkifyCompat.addLinks(textView, Linkify.ALL)
+                        Linkify.addLinks(
+                            textView, Patterns.PHONE, "tel:",
+                            Linkify.sPhoneNumberMatchFilter, Linkify.sPhoneNumberTransformFilter
+                        )
+                        textView.movementMethod = LinkMovementMethod.getInstance()
+                    }
+                }
+
             }
         }
     }
@@ -928,9 +1089,16 @@ fun DisplayMessages(messages: MutableList<String?>) {
     LazyColumn(horizontalAlignment = Alignment.End) {
         itemsIndexed(messages) { index, item ->
             if (item != "" && item != null) {
-                Box(modifier = Modifier
-                    .padding(10.dp)
-                    .border(width = 1.dp, color = Color.Black, shape = RoundedCornerShape(10.dp)))
+                Box(
+                    modifier = Modifier
+                        .padding(10.dp)
+                        .width(200.dp)
+                        .border(
+                            width = 1.dp,
+                            color = Color.Black,
+                            shape = RoundedCornerShape(10.dp)
+                        )
+                )
                 {
                     Text(text = item, fontSize = 16.sp, modifier = Modifier.padding(10.dp))
                 }
