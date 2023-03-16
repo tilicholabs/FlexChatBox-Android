@@ -642,7 +642,7 @@ fun AudioPlayer(context: Context, file: File, mediaPlayer: MediaPlayer?) {
 
             if (!isPlaying) {
                 Icon(
-                    painter = painterResource(id = R.drawable.baseline_play_arrow_24),
+                    painter = painterResource(id = R.drawable.ic_play),
                     contentDescription = "",
                     modifier = Modifier
                         .size(30.dp)
@@ -662,7 +662,7 @@ fun AudioPlayer(context: Context, file: File, mediaPlayer: MediaPlayer?) {
                 )
             } else {
                 Icon(
-                    painter = painterResource(R.drawable.baseline_pause_24),
+                    painter = painterResource(R.drawable.ic_pause),
                     contentDescription = "",
                     modifier = Modifier
                         .size(30.dp)
@@ -906,6 +906,10 @@ fun DisplayLocation(modifier: Modifier = Modifier, location: com.tilicho.flexcha
     Column(modifier = Modifier
         .border(width = 1.dp, color = Color.Black, shape = RoundedCornerShape(12.dp))
         .width(300.dp)) {
+        Row(modifier = Modifier.fillMaxWidth().padding(start = 12.dp), horizontalArrangement = Arrangement.Start) {
+            Text(text = "${location.location?.longitude},${location.location?.latitude}",)
+        }
+
         Row(modifier = Modifier
             .fillMaxWidth(), horizontalArrangement = Arrangement.End) {
             AndroidView(modifier = modifier, factory = { customLinkifyTextView }) { textView ->
@@ -915,11 +919,6 @@ fun DisplayLocation(modifier: Modifier = Modifier, location: com.tilicho.flexcha
                     Linkify.sPhoneNumberMatchFilter, Linkify.sPhoneNumberTransformFilter)
                 textView.movementMethod = LinkMovementMethod.getInstance()
             }
-        }
-        Spacer(modifier = Modifier.height(4.dp))
-
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            Text(text = location.location.toString(), textAlign = TextAlign.Center, modifier = Modifier.padding(4.dp))
         }
     }
 }

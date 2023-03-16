@@ -3,11 +3,13 @@ package com.tilicho.flexchatbox
 import android.Manifest
 import android.app.Activity
 import android.content.Context
+import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.provider.Settings
 import android.util.Log
 import android.view.MotionEvent
 import androidx.activity.compose.ManagedActivityResultLauncher
@@ -82,6 +84,8 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil.compose.rememberAsyncImagePainter
 import coil.compose.rememberImagePainter
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.rememberPermissionState
 import com.google.android.exoplayer2.ExoPlayer
 import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.ui.StyledPlayerView
@@ -107,7 +111,7 @@ import java.io.File
 import kotlin.math.roundToInt
 import kotlin.time.Duration.Companion.seconds
 
-@OptIn(ExperimentalComposeUiApi::class)
+@OptIn(ExperimentalPermissionsApi::class, ExperimentalComposeUiApi::class)
 @RequiresApi(Build.VERSION_CODES.Q)
 @Composable
 fun ChatBox(
@@ -156,6 +160,9 @@ fun ChatBox(
     var icon by remember {
         mutableStateOf(R.drawable.ic_send)
     }
+
+    val permissionState =
+        rememberPermissionState(permission = Manifest.permission.CAMERA)
 
     var contacts: List<ContactData> by remember { mutableStateOf(listOf()) }
 
@@ -511,13 +518,28 @@ fun ChatBox(
                     }
                     Sources.CAMERA -> {
                         SourceImage(icon = R.drawable.ic_camera, isDenied = isDeniedPermission) {
+                            permissionState.launchPermissionRequest()
+
+                            when {
+                                permissionState.hasPermission -> {
+                                    cameraIntent(cameraLauncher)
+                                }
+
+                                !permissionState.hasPermission && !permissionState.shouldShowRationale -> {
+                                    val intent =
+                                        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                                    val uri = Uri.fromParts("package", context.packageName, null)
+                                    intent.data = uri
+                                    context.startActivity(intent)
+                                }
+                            }
                             // Check whether permission is granted or not, if not request permission
-                            if (checkPermission(context, Manifest.permission.CAMERA)) {
+                            /*if (checkPermission(context, Manifest.permission.CAMERA)) {
                                 cameraIntent(cameraLauncher)
 //                                captureVideo(context, videoLauncher, generateUri(context, MEDIA_TYPE_VIDEO))
                             } else {
                                 requestPermission(permissionLauncher, Manifest.permission.CAMERA)
-                            }
+                            }*/
                         }
                     }
                     else -> {}
