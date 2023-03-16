@@ -4,6 +4,7 @@ import android.Manifest
 import android.app.Activity
 import android.content.Context
 import android.graphics.Bitmap
+import android.location.Location
 import android.net.Uri
 import android.os.Build
 import android.os.Handler
@@ -113,7 +114,7 @@ fun ChatBox(
     source: Sources,
     selectedPhotosOrVideos: (List<Uri>) -> Unit,
     recordedAudio: (File) -> Unit,
-    onClickSend: (String, Location?) -> Unit,
+    onClickSend: (String, com.tilicho.flexchatbox.Location?) -> Unit,
     selectedContactsCallBack: (List<ContactData>) -> Unit,
     selectedFiles: (List<Uri>) -> Unit,
     camera: (Sources, Uri) -> Unit,
@@ -121,7 +122,7 @@ fun ChatBox(
     var textFieldValue by rememberSaveable { mutableStateOf("") }
 
     var location by remember {
-        mutableStateOf<Location?>(null)
+        mutableStateOf<com.tilicho.flexchatbox.Location?>(null)
     }
 
     var galleryList by remember {
@@ -337,7 +338,7 @@ fun ChatBox(
                                     val _location = getLocation(context)
                                     val latLong =
                                         (_location?.latitude).toString() + "," + (_location?.longitude).toString()
-                                    location = Location(_location, LOCATION_URL + latLong)
+                                    location = com.tilicho.flexchatbox.Location(_location, LOCATION_URL + latLong)
                                     onClickSend.invoke("", location)
                                 } else {
                                     requestPermission(
