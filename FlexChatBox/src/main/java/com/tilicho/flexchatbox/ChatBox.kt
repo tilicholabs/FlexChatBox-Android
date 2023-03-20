@@ -1,6 +1,7 @@
 package com.tilicho.flexchatbox
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
@@ -21,7 +22,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,7 +30,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -67,8 +66,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.pointer.consumeAllChanges
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.pointerInteropFilter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.colorResource
@@ -76,14 +73,12 @@ import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil.compose.rememberAsyncImagePainter
-import coil.compose.rememberImagePainter
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberPermissionState
 import com.google.android.exoplayer2.ExoPlayer
@@ -108,7 +103,6 @@ import com.tilicho.flexchatbox.utils.requestPermission
 import com.tilicho.flexchatbox.utils.showToast
 import kotlinx.coroutines.delay
 import java.io.File
-import kotlin.math.roundToInt
 import kotlin.time.Duration.Companion.seconds
 
 @OptIn(ExperimentalPermissionsApi::class, ExperimentalComposeUiApi::class)
@@ -119,7 +113,8 @@ fun ChatBox(
     source: Sources,
     selectedPhotosOrVideos: (List<Uri>) -> Unit,
     recordedAudio: (File) -> Unit,
-    onClickSend: (String, Location?) -> Unit,
+    currentLocation: (Location?) -> Unit,
+    onClickSend: (String) -> Unit,
     selectedContactsCallBack: (List<ContactData>) -> Unit,
     selectedFiles: (List<Uri>) -> Unit,
     camera: (Sources, Uri) -> Unit,
@@ -154,7 +149,7 @@ fun ChatBox(
         mutableStateOf(false)
     }
 
-    var icon by remember {
+    var sendIconState by remember {
         mutableStateOf(R.drawable.ic_send)
     }
 
@@ -163,7 +158,6 @@ fun ChatBox(
 
     var contacts: List<ContactData> by remember { mutableStateOf(listOf()) }
 
-    val filesUriList: MutableList<Uri> by remember { mutableStateOf(mutableListOf()) }
 
     var displayContacts by remember {
         mutableStateOf(false)
@@ -178,34 +172,36 @@ fun ChatBox(
 
     }
 
-    var state by remember {
+    var galleryState by remember {
         mutableStateOf(false)
     }
     var showDialog by remember { mutableStateOf(false) }
     val galleryLauncher = rememberLauncherForActivityResult(GetMediaActivityResultContract()) {
         galleryList = it
-        state = true
+        galleryState = true
         showDialog = true
-        selectedPhotosOrVideos(it)
     }
-    if (state) {
-
-        galleryList?.let {
+    if (galleryState) {
+        if (galleryList?.isNotEmpty() == true) {
             if (showDialog) {
                 GalleryPreviewDialog(
                     context,
                     galleryList = galleryList!!,
                     galleryLauncher = galleryLauncher,
-                    onDismissCallback = {
-                        showDialog = it
+                    onDismissCallback = { dismissDialog, setImages ->
+                        showDialog = dismissDialog
+                        if (setImages) {
+                            selectedPhotosOrVideos(galleryList!!)
+                        }
                     })
             }
-
         }
+
     }
 
     val fileLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { activityResult ->
+            val filesUriList: MutableList<Uri> = mutableListOf()
             if (activityResult.resultCode == Activity.RESULT_OK) {
                 if (activityResult.data?.clipData != null) {
                     val count = activityResult.data?.clipData?.itemCount
@@ -284,12 +280,10 @@ fun ChatBox(
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         if (isRecording) {
-            Log.d("dragging 1", "$isRecording")
-            icon = R.drawable.ic_recorder
+            sendIconState = R.drawable.ic_recorder
             AudioRecordingUi()
         } else {
-            icon = R.drawable.ic_send
-            Log.d("dragging 1", "$isRecording")
+            sendIconState = R.drawable.ic_send
             TextField(
                 value = textFieldValue,
                 onValueChange = {
@@ -361,7 +355,7 @@ fun ChatBox(
                                         _location,
                                         LOCATION_URL + latLong
                                     )
-                                    onClickSend.invoke("", location)
+                                    currentLocation.invoke(location)
                                 } else {
                                     requestPermission(
                                         permissionLauncher, Manifest.permission.ACCESS_FINE_LOCATION
@@ -377,11 +371,8 @@ fun ChatBox(
                         if (isDeniedPermission) {
                             iconState = Color(0xffEBEEF1)
                         }
-                        var offsetX by remember { mutableStateOf(0f) }
-                        var offsetY by remember { mutableStateOf(0f) }
 
                         var pressedX = 0F
-                        var pressedY = 0F
                         var fileName by remember {
                             mutableStateOf("")
                         }
@@ -413,9 +404,12 @@ fun ChatBox(
                                                             Handler(Looper.getMainLooper()).postDelayed(
                                                                 {
                                                                     if (fileName.isNotEmpty()) {
-                                                                        recordedAudio.invoke(File(
-                                                                            context.cacheDir,
-                                                                            fileName))
+                                                                        recordedAudio.invoke(
+                                                                            File(
+                                                                                context.cacheDir,
+                                                                                fileName
+                                                                            )
+                                                                        )
                                                                     }
                                                                     fileName = ""
                                                                 }, 100
@@ -438,12 +432,13 @@ fun ChatBox(
                                                 ) {
                                                     fileName =
                                                         "audio${System.currentTimeMillis()}.mp3"
-                                                    File(context.cacheDir,
-                                                        fileName).also {
+                                                    File(
+                                                        context.cacheDir,
+                                                        fileName
+                                                    ).also {
                                                         Handler(Looper.getMainLooper()).postDelayed(
                                                             {
                                                                 pressedX = motionEvent.x
-                                                                pressedY = motionEvent.y
                                                                 if (isPressed) {
                                                                     recorder.start(it)
                                                                     isRecording = true
@@ -467,8 +462,10 @@ fun ChatBox(
                                             }
                                             MotionEvent.ACTION_MOVE -> {
                                                 if (motionEvent.x < -450) {
-                                                    Log.d("move",
-                                                        "canceled ${motionEvent.x} ${pressedX}")
+                                                    Log.d(
+                                                        "move",
+                                                        "canceled ${motionEvent.x} ${pressedX}"
+                                                    )
                                                     fileName = ""
                                                 }
 
@@ -532,13 +529,6 @@ fun ChatBox(
                                     context.startActivity(intent)
                                 }
                             }
-                            // Check whether permission is granted or not, if not request permission
-                            /*if (checkPermission(context, Manifest.permission.CAMERA)) {
-                                cameraIntent(cameraLauncher)
-//                                captureVideo(context, videoLauncher, generateUri(context, MEDIA_TYPE_VIDEO))
-                            } else {
-                                requestPermission(permissionLauncher, Manifest.permission.CAMERA)
-                            }*/
                         }
                     }
                     else -> {}
@@ -546,12 +536,12 @@ fun ChatBox(
             }
             Box(
                 contentAlignment = Alignment.Center, modifier = Modifier.clickable(onClick = {
-                    onClickSend.invoke(textFieldValue, null)
+                    onClickSend.invoke(textFieldValue)
                     textFieldValue = String.empty()
                 })
             ) {
                 Icon(
-                    imageVector = ImageVector.vectorResource(icon),
+                    imageVector = ImageVector.vectorResource(sendIconState),
                     contentDescription = null,
                     modifier = Modifier.padding(dimensionResource(id = R.dimen.spacing_20))
                 )
@@ -698,7 +688,7 @@ fun AudioRecordingUi() {
             .padding(top = 10.dp)
     ) {
         Icon(
-            imageVector = ImageVector.vectorResource(id = R.drawable.baseline_delete_24),
+            imageVector = ImageVector.vectorResource(id = R.drawable.ic_delete_new),
             contentDescription = null,
             tint = Color.Red
         )
@@ -718,13 +708,14 @@ fun AudioRecordingUi() {
     }
 }
 
+@SuppressLint("MutableCollectionMutableState")
 @RequiresApi(Build.VERSION_CODES.Q)
 @Composable
 fun GalleryPreviewUI(
     context: Context,
     items: List<Uri>,
     galleryLauncher: ManagedActivityResultLauncher<String, List<@JvmSuppressWildcards Uri>>,
-    onClick: (Boolean) -> Unit,
+    onDismissClickCallBack: (Boolean, Boolean) -> Unit,
 ) {
 
     var previewUri by remember {
@@ -749,7 +740,7 @@ fun GalleryPreviewUI(
                 contentDescription = null,
                 modifier = Modifier
                     .clickable {
-                        onClick.invoke(false)
+                        onDismissClickCallBack.invoke(false, false)
                     }
                     .padding(dimensionResource(id = R.dimen.spacing_20))
                     .size(dimensionResource(id = R.dimen.spacing_70))
@@ -825,7 +816,7 @@ fun GalleryPreviewUI(
                         }
 
                         Image(
-                            painter = rememberImagePainter(data = R.drawable.ic_play_grey),
+                            painter = rememberAsyncImagePainter(model = R.drawable.ic_play_grey),
                             contentDescription = null,
                             modifier = Modifier
                                 .size(40.dp)
@@ -873,17 +864,18 @@ fun GalleryPreviewUI(
             }
         }
 
-        Spacer(modifier = Modifier.weight(1f))
 
-        Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
+        Row(
+            horizontalArrangement = Arrangement.End, modifier = Modifier
+                .fillMaxWidth()
+        ) {
             Image(
                 imageVector = ImageVector.vectorResource(R.drawable.ic_ok),
                 contentDescription = null,
                 modifier = Modifier
-                    .padding(dimensionResource(id = R.dimen.spacing_20))
                     .size(dimensionResource(id = R.dimen.spacing_80))
                     .clickable {
-                        onClick.invoke(false)
+                        onDismissClickCallBack.invoke(false, true)
                     }
             )
         }
@@ -897,11 +889,11 @@ fun GalleryPreviewDialog(
     context: Context,
     galleryList: List<Uri>,
     galleryLauncher: ManagedActivityResultLauncher<String, List<@JvmSuppressWildcards Uri>>,
-    onDismissCallback: (Boolean) -> Unit,
+    onDismissCallback: (Boolean, Boolean) -> Unit,
 ) {
     Dialog(
         onDismissRequest = {
-            onDismissCallback(false)
+            onDismissCallback(false, false)
         },
         properties = DialogProperties(
             usePlatformDefaultWidth = false,
@@ -910,16 +902,18 @@ fun GalleryPreviewDialog(
         )
     )
     {
-        GalleryPreviewUI(context, items = galleryList, galleryLauncher = galleryLauncher) {
-            onDismissCallback(it)
-        }
+        GalleryPreviewUI(
+            context,
+            items = galleryList,
+            galleryLauncher = galleryLauncher,
+            onDismissClickCallBack = { dismissDialog, setImages ->
+                onDismissCallback(dismissDialog, setImages)
+            })
     }
 }
 
 @Composable
 fun VideoView(context: Context, videoUri: String) {
-    if (context == null) return
-
     val exoPlayer = ExoPlayer.Builder(context)
         .build()
         .also { exoPlayer ->
