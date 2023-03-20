@@ -1,8 +1,10 @@
 package com.tilicho.flexchatbox.utils
 
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.ContentResolver
 import android.content.Context
+import android.content.ContextWrapper
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
@@ -15,22 +17,15 @@ import android.os.Build
 import android.os.CancellationSignal
 import android.provider.ContactsContract
 import android.provider.MediaStore
+import android.provider.Settings
 import android.util.Size
-import android.widget.Toast
 import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.activity.result.ActivityResult
 import androidx.core.content.ContextCompat
-import androidx.core.content.FileProvider
 import com.tilicho.flexchatbox.enums.MediaType
 import java.io.ByteArrayOutputStream
-import java.io.File
 import java.io.Serializable
-import java.text.SimpleDateFormat
 import java.util.*
-
-fun showToast(context: Context, message: String) {
-    Toast.makeText(context, message, Toast.LENGTH_LONG).show()
-}
 
 fun checkPermission(context: Context, permission: String): Boolean {
     return when (PackageManager.PERMISSION_GRANTED) {
@@ -41,13 +36,6 @@ fun checkPermission(context: Context, permission: String): Boolean {
             false
         }
     }
-}
-
-fun requestPermission(
-    permissionLauncher: ManagedActivityResultLauncher<String, Boolean>,
-    permission: String,
-) {
-    permissionLauncher.launch(permission)
 }
 
 fun getLocation(context: Context): Location? {
@@ -125,7 +113,7 @@ val secondaryMobileNumberRegex = Regex("^[1-9]{1}[0-9]{9}\$")
 
 @SuppressLint("Range")
 fun getContacts(applicationContext: Context): List<ContactData> {
-    val list: MutableList<ContactData> = java.util.ArrayList()
+    val list: MutableList<ContactData> = ArrayList()
     val contentResolver: ContentResolver = applicationContext.contentResolver
     val orderBy = ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME_PRIMARY + " ASC"
     val projection = arrayOf(
@@ -223,4 +211,22 @@ fun getThumbnail(context: Context, uri: Uri): Bitmap? {
         bitmap = context.contentResolver.loadThumbnail(uri, mSize, cancellationSignal)
     }
     return bitmap
+}
+
+fun Context.navigateToAppSettings() {
+    this.startActivity(
+        Intent(
+            Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+            Uri.fromParts("package", this.packageName, null)
+        )
+    )
+}
+
+internal fun Context.findActivity(): Activity {
+    var context = this
+    while (context is ContextWrapper) {
+        if (context is Activity) return context
+        context = context.baseContext
+    }
+    throw IllegalStateException("Permissions should be called in the context of an Activity")
 }

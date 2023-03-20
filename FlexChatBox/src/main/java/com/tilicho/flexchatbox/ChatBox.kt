@@ -4,15 +4,9 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
-import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
-import android.os.Handler
-import android.os.Looper
-import android.provider.Settings
-import android.util.Log
-import android.view.MotionEvent
 import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -22,6 +16,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -66,7 +61,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.pointer.pointerInteropFilter
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.dimensionResource
@@ -78,6 +73,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.core.app.ActivityCompat
 import coil.compose.rememberAsyncImagePainter
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberPermissionState
@@ -93,19 +89,19 @@ import com.tilicho.flexchatbox.utils.GetMediaActivityResultContract
 import com.tilicho.flexchatbox.utils.LOCATION_URL
 import com.tilicho.flexchatbox.utils.cameraIntent
 import com.tilicho.flexchatbox.utils.checkPermission
+import com.tilicho.flexchatbox.utils.findActivity
 import com.tilicho.flexchatbox.utils.getContacts
 import com.tilicho.flexchatbox.utils.getImageUri
 import com.tilicho.flexchatbox.utils.getLocation
 import com.tilicho.flexchatbox.utils.getMediaType
 import com.tilicho.flexchatbox.utils.getThumbnail
+import com.tilicho.flexchatbox.utils.navigateToAppSettings
 import com.tilicho.flexchatbox.utils.openFiles
-import com.tilicho.flexchatbox.utils.requestPermission
-import com.tilicho.flexchatbox.utils.showToast
 import kotlinx.coroutines.delay
 import java.io.File
 import kotlin.time.Duration.Companion.seconds
 
-@OptIn(ExperimentalPermissionsApi::class, ExperimentalComposeUiApi::class)
+@OptIn(ExperimentalPermissionsApi::class)
 @RequiresApi(Build.VERSION_CODES.Q)
 @Composable
 fun ChatBox(
@@ -137,15 +133,15 @@ fun ChatBox(
         mutableStateOf<File?>(null)
     }
 
+    var audioFilePath by remember {
+        mutableStateOf("")
+    }
+
     var isPressed by remember {
         mutableStateOf(false)
     }
 
-    var isRecording by remember {
-        mutableStateOf(false)
-    }
-
-    var isDeniedPermission by remember {
+    val isRecording by remember {
         mutableStateOf(false)
     }
 
@@ -153,15 +149,13 @@ fun ChatBox(
         mutableStateOf(R.drawable.ic_send)
     }
 
-    val permissionState =
-        rememberPermissionState(permission = Manifest.permission.CAMERA)
-
     var contacts: List<ContactData> by remember { mutableStateOf(listOf()) }
 
 
     var displayContacts by remember {
         mutableStateOf(false)
     }
+
     if (displayContacts) {
         DisplayContacts(contacts = contacts, selectedContactsCallBack = {
             displayContacts = false
@@ -176,6 +170,19 @@ fun ChatBox(
         mutableStateOf(false)
     }
     var showDialog by remember { mutableStateOf(false) }
+
+    var showSettingsDialog by remember { mutableStateOf(false) }
+
+    var isPermissionPermanentlyDenied by remember { mutableStateOf(false) }
+
+    if (isPermissionPermanentlyDenied) {
+        if (showSettingsDialog) {
+            ShowNavigateToAppSettingsDialog(context = context, onDismissCallback = {
+                showSettingsDialog = it
+            })
+        }
+    }
+
     val galleryLauncher = rememberLauncherForActivityResult(GetMediaActivityResultContract()) {
         galleryList = it
         galleryState = true
@@ -198,6 +205,22 @@ fun ChatBox(
         }
 
     }
+
+    val cameraLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { activityResult ->
+            if (activityResult.resultCode == Activity.RESULT_OK) {
+
+                if (activityResult.data?.data != null) {
+                    activityResult.data?.data?.let {
+                        camera(Sources.VIDEO, it)
+                    }
+                } else {
+                    getImageUri(context, activityResult.data?.extras?.get("data") as Bitmap)?.let {
+                        camera(Sources.CAMERA, it)
+                    }
+                }
+            }
+        }
 
     val fileLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { activityResult ->
@@ -223,56 +246,117 @@ fun ChatBox(
             }
         }
 
-    val cameraLauncher =
-        rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { activityResult ->
-            if (activityResult.resultCode == Activity.RESULT_OK) {
+    val galleryPermissionState =
+        rememberPermissionState(permission = Manifest.permission.READ_EXTERNAL_STORAGE) { isGranted ->
+            val permissionPermanentlyDenied = !ActivityCompat.shouldShowRequestPermissionRationale(
+                context.findActivity(), Manifest.permission.READ_EXTERNAL_STORAGE
+            ) && !isGranted
 
-                if (activityResult.data?.data != null) {
-                    activityResult.data?.data?.let {
-                        camera(Sources.VIDEO, it)
-                    }
-                } else {
-                    getImageUri(context, activityResult.data?.extras?.get("data") as Bitmap)?.let {
-                        camera(Sources.CAMERA, it)
-                    }
-                }
+            if (permissionPermanentlyDenied) {
+                isPermissionPermanentlyDenied = true
+                showSettingsDialog = true
+            }
+            if (isGranted) {
+                galleryLauncher.launch(GALLERY_INPUT_TYPE)
+                isPermissionPermanentlyDenied = false
+                showDialog = false
             }
         }
 
-    val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        if (isGranted) {
-            isDeniedPermission = false
-            when (source) {
-                Sources.GALLERY -> {
-                    galleryLauncher.launch(GALLERY_INPUT_TYPE)
-                }
-                Sources.LOCATION -> {
-                    val _location = getLocation(context)
-                    val latLong =
-                        (_location?.latitude).toString() + "," + (_location?.longitude).toString()
-                    _location?.let { Location(_location, LOCATION_URL + latLong) }
-                }
-                Sources.VOICE -> {
-                }
-                Sources.CONTACTS -> {
-                    contacts = getContacts(context)
-                    displayContacts = true
-                }
-                Sources.FILES -> {
-                    openFiles(context, fileLauncher)
-                }
-                Sources.CAMERA -> {
-                    cameraIntent(cameraLauncher)
-                }
-                else -> {}
+    val cameraPermissionState =
+        rememberPermissionState(permission = Manifest.permission.CAMERA) { isGranted ->
+            val permissionPermanentlyDenied = !ActivityCompat.shouldShowRequestPermissionRationale(
+                context.findActivity(), Manifest.permission.CAMERA
+            ) && !isGranted
+
+            if (permissionPermanentlyDenied) {
+                isPermissionPermanentlyDenied = true
+                showSettingsDialog = true
             }
-        } else {
-            isDeniedPermission = true
-            showToast(context.applicationContext, context.getString(R.string.permission_denied))
+            if (isGranted) {
+                cameraIntent(cameraLauncher)
+                isPermissionPermanentlyDenied = false
+                showDialog = false
+            }
         }
-    }
+
+    val locationPermissionState =
+        rememberPermissionState(permission = Manifest.permission.ACCESS_FINE_LOCATION) { isGranted ->
+            val permissionPermanentlyDenied = !ActivityCompat.shouldShowRequestPermissionRationale(
+                context.findActivity(), Manifest.permission.ACCESS_FINE_LOCATION
+            ) && !isGranted
+
+            if (permissionPermanentlyDenied) {
+                isPermissionPermanentlyDenied = true
+                showSettingsDialog = true
+            }
+            if (isGranted) {
+                val currLocation = getLocation(context)
+                val latLong =
+                    (currLocation?.latitude).toString() + "," + (currLocation?.longitude).toString()
+                location = Location(
+                    currLocation,
+                    LOCATION_URL + latLong
+                )
+                currentLocation(location)
+                isPermissionPermanentlyDenied = false
+                showDialog = false
+            }
+        }
+
+    val contactsPermissionState =
+        rememberPermissionState(permission = Manifest.permission.READ_CONTACTS) { isGranted ->
+            val permissionPermanentlyDenied = !ActivityCompat.shouldShowRequestPermissionRationale(
+                context.findActivity(), Manifest.permission.READ_CONTACTS
+            ) && !isGranted
+
+            if (permissionPermanentlyDenied) {
+                isPermissionPermanentlyDenied = true
+                showSettingsDialog = true
+            }
+            if (isGranted) {
+                val data = getContacts(context)
+                contacts = data
+                displayContacts = true
+                isPermissionPermanentlyDenied = false
+                showDialog = false
+            }
+        }
+
+    val filesPermissionState =
+        rememberPermissionState(permission = Manifest.permission.READ_EXTERNAL_STORAGE) { isGranted ->
+            val permissionPermanentlyDenied = !ActivityCompat.shouldShowRequestPermissionRationale(
+                context.findActivity(), Manifest.permission.READ_EXTERNAL_STORAGE
+            ) && !isGranted
+
+            if (permissionPermanentlyDenied) {
+                isPermissionPermanentlyDenied = true
+                showSettingsDialog = true
+            }
+            if (isGranted) {
+                openFiles(context, fileLauncher)
+                isPermissionPermanentlyDenied = false
+                showDialog = false
+            }
+        }
+
+    val recordAudioPermissionState =
+        rememberPermissionState(permission = Manifest.permission.RECORD_AUDIO) { isGranted ->
+            val permissionPermanentlyDenied = !ActivityCompat.shouldShowRequestPermissionRationale(
+                context.findActivity(), Manifest.permission.RECORD_AUDIO
+            ) && !isGranted
+
+            if (permissionPermanentlyDenied) {
+                isPermissionPermanentlyDenied = true
+                showSettingsDialog = true
+            }
+            if (isGranted) {
+                isPermissionPermanentlyDenied = false
+                showDialog = false
+            }
+        }
+
+
 
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -323,219 +407,86 @@ fun ChatBox(
                 when (source) {
                     Sources.GALLERY -> {
                         SourceImage(icon = R.drawable.ic_gallery,
-                            isDenied = isDeniedPermission,
+                            isDenied = isPermissionPermanentlyDenied,
                             onClickIcon = {
-                                // Check whether permission is granted or not, if not request permission
-                                if (checkPermission(
-                                        context, Manifest.permission.READ_EXTERNAL_STORAGE
-                                    )
-                                ) {
-                                    galleryLauncher.launch(GALLERY_INPUT_TYPE)
-                                } else {
-                                    requestPermission(
-                                        permissionLauncher,
-                                        Manifest.permission.READ_EXTERNAL_STORAGE
-                                    )
-                                }
+                                galleryPermissionState.launchPermissionRequest()
                             })
                     }
 
                     Sources.LOCATION -> {
                         SourceImage(icon = R.drawable.ic_location,
-                            isDenied = isDeniedPermission,
+                            isDenied = isPermissionPermanentlyDenied,
                             onClickIcon = {
-                                if (checkPermission(
-                                        context, Manifest.permission.ACCESS_FINE_LOCATION
-                                    )
-                                ) {
-                                    val _location = getLocation(context)
-                                    val latLong =
-                                        (_location?.latitude).toString() + "," + (_location?.longitude).toString()
-                                    location = Location(
-                                        _location,
-                                        LOCATION_URL + latLong
-                                    )
-                                    currentLocation.invoke(location)
-                                } else {
-                                    requestPermission(
-                                        permissionLauncher, Manifest.permission.ACCESS_FINE_LOCATION
-                                    )
-                                }
+                                locationPermissionState.launchPermissionRequest()
                             })
                     }
 
                     Sources.VOICE -> {
-                        var iconState by remember {
-                            mutableStateOf(Color.Transparent)
-                        }
-                        if (isDeniedPermission) {
-                            iconState = Color(0xffEBEEF1)
-                        }
 
-                        var pressedX = 0F
-                        var fileName by remember {
-                            mutableStateOf("")
-                        }
-                        Box(
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(
-                                imageVector = ImageVector.vectorResource(R.drawable.ic_mic),
-                                contentDescription = null,
-                                modifier = Modifier
-                                    .padding(dimensionResource(id = R.dimen.spacing_20))
-                                    .pointerInteropFilter { motionEvent ->
-                                        when (motionEvent.action) {
-                                            MotionEvent.ACTION_UP -> {
-                                                Log.d("up", audioFile?.path ?: "empty")
+                        Image(
+                            imageVector = ImageVector.vectorResource(R.drawable.ic_mic),
+                            contentDescription = null,
+                            modifier = Modifier
+                                .padding(dimensionResource(id = R.dimen.spacing_20))
+                                .pointerInput(Unit) {
+                                    detectTapGestures(
+                                        onPress = {
+                                            if (checkPermission(context,
+                                                    Manifest.permission.RECORD_AUDIO)
+                                            ) {
                                                 try {
-                                                    isPressed = false
-                                                    Log.d(
-                                                        "up",
-                                                        "record: $isRecording pressed: $isPressed"
-                                                    )
-                                                    if (isRecording) {
-                                                        recorder.stop()
-                                                        Log.d(
-                                                            "audio up",
-                                                            audioFile?.path ?: "empty"
-                                                        )
-                                                        try {
-                                                            Handler(Looper.getMainLooper()).postDelayed(
-                                                                {
-                                                                    if (fileName.isNotEmpty()) {
-                                                                        recordedAudio.invoke(
-                                                                            File(
-                                                                                context.cacheDir,
-                                                                                fileName
-                                                                            )
-                                                                        )
-                                                                    }
-                                                                    fileName = ""
-                                                                }, 100
-                                                            )
-                                                        } catch (e: Exception) {
-                                                            Log.d("up", "$e")
-                                                        }
-                                                    }
-                                                    isRecording = false
-                                                    Log.d("up", "$isRecording")
-                                                } catch (_: Exception) {
-                                                    // do nothing
-                                                }
-                                            }
-                                            MotionEvent.ACTION_DOWN -> {
-                                                isPressed = true
-                                                if (checkPermission(
-                                                        context, Manifest.permission.RECORD_AUDIO
-                                                    )
-                                                ) {
-                                                    fileName =
-                                                        "audio${System.currentTimeMillis()}.mp3"
-                                                    File(
-                                                        context.cacheDir,
-                                                        fileName
-                                                    ).also {
-                                                        Handler(Looper.getMainLooper()).postDelayed(
-                                                            {
-                                                                pressedX = motionEvent.x
-                                                                if (isPressed) {
-                                                                    recorder.start(it)
-                                                                    isRecording = true
-                                                                    Log.d(
-                                                                        "down",
-                                                                        "recording: $isRecording"
-                                                                    )
-                                                                }
-                                                            },
-                                                            200
-                                                        )
+                                                    File(context.cacheDir, "audio.mp3").also {
+                                                        recorder.start(it)
                                                         audioFile = it
-                                                        Log.d(
-                                                            "audio down",
-                                                            audioFile?.path ?: "empty"
-                                                        )
                                                     }
-                                                } else {
-                                                    permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                                                }
-                                            }
-                                            MotionEvent.ACTION_MOVE -> {
-                                                if (motionEvent.x < -450) {
-                                                    Log.d(
-                                                        "move",
-                                                        "canceled ${motionEvent.x} ${pressedX}"
-                                                    )
-                                                    fileName = ""
-                                                }
+                                                    awaitRelease()
+                                                } finally {
+                                                    try {
+                                                        recorder.stop()
+                                                        audioFile?.let { it1 ->
+                                                            recordedAudio.invoke(it1)
+                                                        }
+                                                    } catch (_: Exception) {
+                                                        // do nothing
+                                                    }
 
+                                                }
+                                            } else {
+                                                recordAudioPermissionState.launchPermissionRequest()
                                             }
                                         }
-                                        true
-                                    }
-                            )
-                        }
+                                    )
+                                }
+                        )
                     }
 
                     Sources.CONTACTS -> {
                         SourceImage(
                             icon = R.drawable.ic_person,
-                            isDenied = isDeniedPermission
-                        ) {
-                            if (checkPermission(context, Manifest.permission.READ_CONTACTS)) {
-                                val data = getContacts(context)
-                                contacts = data
-                                displayContacts = true
-                            } else {
-                                requestPermission(
-                                    permissionLauncher, Manifest.permission.READ_CONTACTS
-                                )
-                            }
-                        }
+                            isDenied = isPermissionPermanentlyDenied,
+                            onClickIcon = {
+                                contactsPermissionState.launchPermissionRequest()
+                            })
                     }
                     Sources.FILES -> {
                         SourceImage(icon = R.drawable.ic_file,
-                            isDenied = isDeniedPermission,
+                            isDenied = isPermissionPermanentlyDenied,
                             onClickIcon = {
-                                // Check whether permission is granted or not, if not request permission
-                                if (checkPermission(
-                                        context,
-                                        Manifest.permission.READ_EXTERNAL_STORAGE
-                                    )
-                                ) {
-                                    openFiles(context, fileLauncher)
-                                } else {
-                                    requestPermission(
-                                        permissionLauncher,
-                                        Manifest.permission.READ_EXTERNAL_STORAGE
-                                    )
-                                }
+                                filesPermissionState.launchPermissionRequest()
                             })
                     }
                     Sources.CAMERA -> {
-                        SourceImage(icon = R.drawable.ic_camera, isDenied = isDeniedPermission) {
-                            permissionState.launchPermissionRequest()
-
-                            when {
-                                permissionState.hasPermission -> {
-                                    cameraIntent(cameraLauncher)
-                                }
-
-                                !permissionState.hasPermission && !permissionState.shouldShowRationale -> {
-                                    val intent =
-                                        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
-                                    val uri = Uri.fromParts("package", context.packageName, null)
-                                    intent.data = uri
-                                    context.startActivity(intent)
-                                }
-                            }
+                        SourceImage(icon = R.drawable.ic_camera,
+                            isDenied = isPermissionPermanentlyDenied) {
+                            cameraPermissionState.launchPermissionRequest()
                         }
                     }
                     else -> {}
                 }
             }
             Box(
-                contentAlignment = Alignment.Center, modifier = Modifier.clickable(onClick = {
+                contentAlignment = Alignment.Center,
+                modifier = Modifier.clickable(onClick = {
                     onClickSend.invoke(textFieldValue)
                     textFieldValue = String.empty()
                 })
@@ -576,7 +527,7 @@ fun SourceImage(icon: Int, isDenied: Boolean, onClickIcon: () -> Unit) {
 
 }
 
-private fun String.Companion.empty() = ""
+fun String.Companion.empty() = ""
 
 @Composable
 fun DisplayContacts(
@@ -882,8 +833,8 @@ fun GalleryPreviewUI(
     }
 }
 
-@RequiresApi(Build.VERSION_CODES.Q)
 @OptIn(ExperimentalComposeUiApi::class)
+@RequiresApi(Build.VERSION_CODES.Q)
 @Composable
 fun GalleryPreviewDialog(
     context: Context,
@@ -912,25 +863,56 @@ fun GalleryPreviewDialog(
     }
 }
 
-@Composable
-fun VideoView(context: Context, videoUri: String) {
-    val exoPlayer = ExoPlayer.Builder(context)
-        .build()
-        .also { exoPlayer ->
-            val mediaItem = MediaItem.Builder()
-                .setUri(videoUri)
-                .build()
-            exoPlayer.setMediaItem(mediaItem)
-            exoPlayer.prepare()
-        }
-
-    DisposableEffect(
-        AndroidView(modifier = Modifier.height(473.dp), factory = {
-            StyledPlayerView(context).apply {
-                player = exoPlayer
+    @Composable
+    fun VideoView(context: Context, videoUri: String) {
+        val exoPlayer = ExoPlayer.Builder(context)
+            .build()
+            .also { exoPlayer ->
+                val mediaItem = MediaItem.Builder()
+                    .setUri(videoUri)
+                    .build()
+                exoPlayer.setMediaItem(mediaItem)
+                exoPlayer.prepare()
             }
-        })
-    ) {
-        onDispose { exoPlayer.release() }
+
+        DisposableEffect(
+            AndroidView(modifier = Modifier.height(473.dp), factory = {
+                StyledPlayerView(context).apply {
+                    player = exoPlayer
+                }
+            })
+        ) {
+            onDispose { exoPlayer.release() }
+        }
     }
-}
+
+    @Composable
+    fun ShowNavigateToAppSettingsDialog(context: Context, onDismissCallback: (Boolean) -> Unit) {
+        Dialog(
+            onDismissRequest = {
+                onDismissCallback(false)
+            }
+        ) {
+            Card {
+                Column(modifier = Modifier.padding(10.dp)) {
+                    Text(text = "Permission denied. Go to settings and allow the permission")
+
+                    Row(modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End) {
+                        Text(text = "Cancel", color = Color.Blue,
+                            modifier = Modifier.clickable {
+                                onDismissCallback(false)
+                            })
+
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        Text(text = "Settings", color = Color.Blue,
+                            modifier = Modifier.clickable {
+                                onDismissCallback(false)
+                                context.navigateToAppSettings()
+                            })
+                    }
+                }
+            }
+        }
+    }

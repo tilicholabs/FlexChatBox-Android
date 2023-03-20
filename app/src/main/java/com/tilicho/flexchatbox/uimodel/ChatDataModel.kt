@@ -1,7 +1,6 @@
 package com.tilicho.flexchatbox.uimodel
 
 import android.net.Uri
-import androidx.compose.ui.text.input.TextFieldValue
 import com.tilicho.flexchatbox.Location
 import com.tilicho.flexchatbox.enums.Sources
 import com.tilicho.flexchatbox.utils.ContactData
@@ -14,7 +13,7 @@ data class ChatDataModel(
     val voice: Voice? = null,
     val location: LocationItem? = null,
     val galleryItems: GalleryItems? = null,
-    val file: Files? = null,
+    val file: FileItems? = null,
     val contacts: Contacts? = null,
     val textFieldValue: String? = null
 )
@@ -44,7 +43,7 @@ data class GalleryItems(
     val sourceType: Sources = Sources.GALLERY
 )
 
-data class Files(
+data class FileItems(
     val files: List<Uri>? = null,
     val sourceType: Sources = Sources.FILES
 )
