@@ -11,16 +11,27 @@ class AndroidAudioPlayer(
 
     private var player: MediaPlayer? = null
 
-    override fun playFile(file: File) {
-        MediaPlayer.create(context, file.toUri()).apply {
+    override fun playFile() {
+        player?.start()
+    }
+
+    override fun initMediaPlayer(file: File?) {
+        MediaPlayer.create(context, file?.toUri()).apply {
             player = this
-            start()
         }
+    }
+
+    override fun getMediaPlayer(): MediaPlayer? {
+        return player
     }
 
     override fun stop() {
         player?.stop()
         player?.release()
         player = null
+    }
+
+    override fun pause() {
+        player?.pause()
     }
 }

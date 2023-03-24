@@ -115,7 +115,7 @@ fun ChatBox(
     selectedFiles: (List<Uri>) -> Unit,
     camera: (Sources, Uri) -> Unit,
 ) {
-    var textFieldValue by rememberSaveable { mutableStateOf("") }
+    var textFieldValue by rememberSaveable { mutableStateOf(String.empty()) }
 
     var location by remember {
         mutableStateOf<Location?>(null)
@@ -133,14 +133,6 @@ fun ChatBox(
         mutableStateOf<File?>(null)
     }
 
-    var audioFilePath by remember {
-        mutableStateOf("")
-    }
-
-    var isPressed by remember {
-        mutableStateOf(false)
-    }
-
     val isRecording by remember {
         mutableStateOf(false)
     }
@@ -150,7 +142,6 @@ fun ChatBox(
     }
 
     var contacts: List<ContactData> by remember { mutableStateOf(listOf()) }
-
 
     var displayContacts by remember {
         mutableStateOf(false)
@@ -356,8 +347,6 @@ fun ChatBox(
             }
         }
 
-
-
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.Bottom,
@@ -388,7 +377,7 @@ fun ChatBox(
                 modifier = Modifier
                     .weight(4f)
                     .border(
-                        shape = RoundedCornerShape(10.dp),
+                        shape = RoundedCornerShape(dimensionResource(id = R.dimen.spacing_20)),
                         border = BorderStroke(1.dp, color = Color.Black)
                     ),
                 singleLine = false,
@@ -399,7 +388,7 @@ fun ChatBox(
         Row(
             modifier = Modifier
                 .weight(2f)
-                .padding(bottom = 4.dp),
+                .padding(dimensionResource(id = R.dimen.spacing_10)),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
 
@@ -542,36 +531,36 @@ fun DisplayContacts(
     ) {
         Surface(
             color = Color(0xffffffff),
-            shape = RoundedCornerShape(10.dp),
+            shape = RoundedCornerShape(dimensionResource(id = R.dimen.spacing_10dp)),
             modifier = Modifier
                 .fillMaxSize()
-                .padding(10.dp)
+                .padding(dimensionResource(id = R.dimen.spacing_10dp))
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(vertical = 10.dp)
+                    .padding(vertical = dimensionResource(id = R.dimen.spacing_10dp))
             ) {
                 Row(
                     modifier = Modifier
-                        .padding(horizontal = 10.dp)
-                        .padding(start = 10.dp),
+                        .padding(horizontal = dimensionResource(id = R.dimen.spacing_10dp))
+                        .padding(start = dimensionResource(id = R.dimen.spacing_10dp)),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(text = "Contacts", textAlign = TextAlign.Center, fontSize = 20.sp)
+                    Text(text = stringResource(id = R.string.contacts), textAlign = TextAlign.Center, fontSize = 20.sp)
                     Spacer(modifier = Modifier.weight(1f))
                     Button(onClick = {
                         selectedContactsCallBack.invoke(selectedContacts)
                     }) {
-                        Text(text = "Send")
+                        Text(text = stringResource(id = R.string.send))
                     }
                 }
 
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_50)))
 
-                LazyColumn(modifier = Modifier.padding(start = 10.dp)) {
+                LazyColumn(modifier = Modifier.padding(start = dimensionResource(id = R.dimen.spacing_10dp))) {
                     items(contacts.size) { index ->
-                        Spacer(modifier = Modifier.height(2.dp))
+                        Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_00)))
                         var isSelected by remember {
                             mutableStateOf(selectedContacts.contains(contacts[index]))
                         }
@@ -586,7 +575,7 @@ fun DisplayContacts(
                         }
                         Row(
                             modifier = Modifier
-                                .padding(10.dp)
+                                .padding(dimensionResource(id = R.dimen.spacing_10dp))
                                 .clickable(onClick = {
                                     isSelected = if (selectedContacts.contains(contact)) {
                                         selectedContacts.remove(contact)
@@ -634,22 +623,22 @@ fun AudioRecordingUi() {
         modifier = Modifier
             .wrapContentWidth()
             .width(230.dp)
-            .height(50.dp)
-            .padding(horizontal = 10.dp)
-            .padding(top = 10.dp)
+            .height(dimensionResource(id = R.dimen.spacing_90))
+            .padding(horizontal = dimensionResource(id = R.dimen.spacing_10dp))
+            .padding(top = dimensionResource(id = R.dimen.spacing_10dp))
     ) {
         Icon(
             imageVector = ImageVector.vectorResource(id = R.drawable.ic_delete_new),
             contentDescription = null,
             tint = Color.Red
         )
-        Spacer(modifier = Modifier.width(10.dp))
+        Spacer(modifier = Modifier.width(dimensionResource(id = R.dimen.spacing_10dp)))
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(text = "Recording audio", color = Color.Red)
-            Text(text = "Swipe to cancel", fontSize = 12.sp, color = Color.Red)
+            Text(text = stringResource(id = R.string.recording_audio), color = Color.Red)
+            Text(text = stringResource(id = R.string.swipe_to_cancel), fontSize = 12.sp, color = Color.Red)
         }
 
-        Spacer(modifier = Modifier.width(10.dp))
+        Spacer(modifier = Modifier.width(dimensionResource(id = R.dimen.spacing_10dp)))
 
         if (seconds < 10) {
             Text(text = "0$minutes:0$seconds", color = Color.Red)
@@ -713,7 +702,7 @@ fun GalleryPreviewUI(
             }
         }
 
-        Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_90)))
+        Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_80)))
 
         LazyRow(
             modifier = Modifier
@@ -726,7 +715,7 @@ fun GalleryPreviewUI(
                 if (getMediaType(context, item) == MediaType.MediaTypeImage) {
                     Image(
                         painter = rememberAsyncImagePainter(model = item),
-                        contentDescription = "avatar",
+                        contentDescription = stringResource(R.string.avatar),
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
                             .size(
@@ -738,7 +727,7 @@ fun GalleryPreviewUI(
                                 previewUri = item
                             }
                             .border(
-                                width = 2.dp,
+                                width = dimensionResource(id = R.dimen.spacing_00),
                                 color = if (previewUri == item) Color(0xff0096FF) else Color.Transparent
                             )
                     )
@@ -748,7 +737,7 @@ fun GalleryPreviewUI(
                         getThumbnail(context, item)?.asImageBitmap()?.let {
                             Image(
                                 bitmap = it,
-                                contentDescription = "avatar",
+                                contentDescription = stringResource(R.string.avatar),
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier
                                     .size(
@@ -760,7 +749,7 @@ fun GalleryPreviewUI(
                                         previewUri = item
                                     }
                                     .border(
-                                        width = 2.dp,
+                                        width = dimensionResource(id = R.dimen.spacing_00),
                                         color = if (previewUri == item) Color(0xff0096FF) else Color.Transparent
                                     )
                             )
@@ -770,7 +759,7 @@ fun GalleryPreviewUI(
                             painter = rememberAsyncImagePainter(model = R.drawable.ic_play_grey),
                             contentDescription = null,
                             modifier = Modifier
-                                .size(40.dp)
+                                .size(dimensionResource(id = R.dimen.spacing_80))
                         )
                     }
                 }
@@ -787,7 +776,7 @@ fun GalleryPreviewUI(
                     contentDescription = null,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(473.dp)
+                        .height(dimensionResource(id = R.dimen.preview_image_height))
                         .clip(RectangleShape)
                 )
             } else if (getMediaType(context, previewUri) == MediaType.MediaTypeVideo) {
@@ -863,56 +852,56 @@ fun GalleryPreviewDialog(
     }
 }
 
-    @Composable
-    fun VideoView(context: Context, videoUri: String) {
-        val exoPlayer = ExoPlayer.Builder(context)
-            .build()
-            .also { exoPlayer ->
-                val mediaItem = MediaItem.Builder()
-                    .setUri(videoUri)
-                    .build()
-                exoPlayer.setMediaItem(mediaItem)
-                exoPlayer.prepare()
-            }
+@Composable
+fun VideoView(context: Context, videoUri: String) {
+    val exoPlayer = ExoPlayer.Builder(context)
+        .build()
+        .also { exoPlayer ->
+            val mediaItem = MediaItem.Builder()
+                .setUri(videoUri)
+                .build()
+            exoPlayer.setMediaItem(mediaItem)
+            exoPlayer.prepare()
+        }
 
-        DisposableEffect(
-            AndroidView(modifier = Modifier.height(473.dp), factory = {
-                StyledPlayerView(context).apply {
-                    player = exoPlayer
+    DisposableEffect(
+        AndroidView(modifier = Modifier.height(dimensionResource(id = R.dimen.preview_image_height)), factory = {
+            StyledPlayerView(context).apply {
+                player = exoPlayer
+            }
+        })
+    ) {
+        onDispose { exoPlayer.release() }
+    }
+}
+
+@Composable
+fun ShowNavigateToAppSettingsDialog(context: Context, onDismissCallback: (Boolean) -> Unit) {
+    Dialog(
+        onDismissRequest = {
+            onDismissCallback(false)
+        }
+    ) {
+        Card {
+            Column(modifier = Modifier.padding(dimensionResource(id = R.dimen.spacing_30))) {
+                Text(text = stringResource(id = R.string.permission_denied))
+
+                Row(modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End) {
+                    Text(text = stringResource(id = R.string.cancel), color = Color.Blue,
+                        modifier = Modifier.clickable {
+                            onDismissCallback(false)
+                        })
+
+                    Spacer(modifier = Modifier.width(dimensionResource(id = R.dimen.spacing_30)))
+
+                    Text(text = stringResource(id = R.string.settings), color = Color.Blue,
+                        modifier = Modifier.clickable {
+                            onDismissCallback(false)
+                            context.navigateToAppSettings()
+                        })
                 }
-            })
-        ) {
-            onDispose { exoPlayer.release() }
+            }
         }
     }
-
-    @Composable
-    fun ShowNavigateToAppSettingsDialog(context: Context, onDismissCallback: (Boolean) -> Unit) {
-        Dialog(
-            onDismissRequest = {
-                onDismissCallback(false)
-            }
-        ) {
-            Card {
-                Column(modifier = Modifier.padding(10.dp)) {
-                    Text(text = "Permission denied. Go to settings and allow the permission")
-
-                    Row(modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End) {
-                        Text(text = "Cancel", color = Color.Blue,
-                            modifier = Modifier.clickable {
-                                onDismissCallback(false)
-                            })
-
-                        Spacer(modifier = Modifier.width(12.dp))
-
-                        Text(text = "Settings", color = Color.Blue,
-                            modifier = Modifier.clickable {
-                                onDismissCallback(false)
-                                context.navigateToAppSettings()
-                            })
-                    }
-                }
-            }
-        }
-    }
+}

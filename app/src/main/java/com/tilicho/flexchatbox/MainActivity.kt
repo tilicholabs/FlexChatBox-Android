@@ -50,13 +50,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.unit.Dp
@@ -66,7 +64,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.core.net.toUri
 import androidx.core.text.util.LinkifyCompat
-import coil.compose.rememberImagePainter
+import coil.compose.rememberAsyncImagePainter
 import com.google.android.exoplayer2.ExoPlayer
 import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.ui.StyledPlayerView
@@ -103,18 +101,6 @@ class MainActivity : ComponentActivity() {
                 mutableStateOf<MutableList<ChatDataModel>?>(mutableListOf())
             }
 
-            var galleryItemsUriList by remember {
-                mutableStateOf<MutableList<Uri>?>(null)
-            }
-
-            var mediaPlayer by remember {
-                mutableStateOf(MediaPlayer())
-            }
-
-            var file by remember {
-                mutableStateOf<File?>(null)
-            }
-
             var selectedFlex by remember {
                 mutableStateOf(Sources.CAMERA)
             }
@@ -146,10 +132,6 @@ class MainActivity : ComponentActivity() {
                                     mutableListOf(ChatDataModel(voice = Voice(file = it))).toMutableList()
                                 chatData?.let { it1 -> currData.addAll(currData.size - 1, it1) }
                                 chatData = currData
-                                /*MediaPlayer.create(this@MainActivity, it.toUri()).apply {
-                                    file = it
-                                    mediaPlayer = this
-                                }*/
                             },
                             onClickSend = { it ->
                                 it.let {
@@ -163,7 +145,6 @@ class MainActivity : ComponentActivity() {
                                             )
                                         }
                                         chatData = currData
-
                                     }
                                 }
                             },
@@ -193,17 +174,16 @@ class MainActivity : ComponentActivity() {
                             },
                             camera = { _source, uri ->
                                 source = _source
-                                if (_source == Sources.CAMERA) {
+                                chatData = if (_source == Sources.CAMERA) {
                                     val currData =
                                         mutableListOf(ChatDataModel(camera = Camera(uri = uri))).toMutableList()
                                     chatData?.let { currData.addAll(currData.size - 1, it) }
-                                    chatData = currData
+                                    currData
                                 } else {
                                     val currData =
                                         mutableListOf(ChatDataModel(video = Video(uri = uri))).toMutableList()
                                     chatData?.let { currData.addAll(currData.size - 1, it) }
-                                    chatData = currData
-
+                                    currData
                                 }
                             }
                         )
@@ -322,7 +302,7 @@ class MainActivity : ComponentActivity() {
                         contentDescription = "",
                     )
                     Spacer(modifier = Modifier.width(10.dp))
-                    Column() {
+                    Column {
                         contacts[0].name?.let { it1 -> Text(text = it1) }
                         contacts[0].mobileNumber?.let { it1 -> Text(text = it1) }
                     }
@@ -384,7 +364,7 @@ class MainActivity : ComponentActivity() {
                     border = BorderStroke(1.dp, color = Color.Black)
                 ) {
                     Image(
-                        painter = rememberImagePainter(data = videoThumbnail),
+                        painter = rememberAsyncImagePainter(model = videoThumbnail),
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
@@ -396,7 +376,7 @@ class MainActivity : ComponentActivity() {
                     )
                 }
                 Image(
-                    painter = rememberImagePainter(data = R.drawable.ic_play),
+                    painter = rememberAsyncImagePainter(model = R.drawable.ic_play),
                     contentDescription = null,
                     modifier = Modifier
                         .size(50.dp)
@@ -409,7 +389,7 @@ class MainActivity : ComponentActivity() {
                 border = BorderStroke(1.dp, color = Color.Black)
             ) {
                 Image(
-                    painter = rememberImagePainter(data = galleryItem),
+                    painter = rememberAsyncImagePainter(model = galleryItem),
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
@@ -468,9 +448,23 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     fun SetVoiceItemCell(context: Context, audioFile: File?) {
-        val audioPlayer by lazy {
-            AndroidAudioPlayer(context)
+
+        var mediaPlayer: MediaPlayer? = null
+
+        if (audioFile != null) {
+            MediaPlayer.create(context, audioFile.toUri()).apply {
+                mediaPlayer = this
+            }
         }
+
+        var durationScale by remember {
+            mutableStateOf(mediaPlayer?.getDurationInMmSs())
+        }
+        var isPlaying by remember {
+            mutableStateOf(false)
+        }
+        val handler = Handler()
+
         Card(
             border = BorderStroke(width = Dp.Hairline, color = Color.Black),
             shape = RoundedCornerShape(10.dp)
@@ -484,38 +478,48 @@ class MainActivity : ComponentActivity() {
                     contentDescription = null,
                     modifier = Modifier
                         .size(50.dp)
-                        .clickable(onClick = {
-
-                        })
                 )
 
-                Text(text = "Audio 00:00")
+                mediaPlayer?.setOnCompletionListener {
+                    isPlaying = false
+                    durationScale = it?.getDurationInMmSs()
+                }
 
-                if (true) {
+                Text(text = "Audio $durationScale")
+                if (!isPlaying) {
                     Icon(
                         painter = painterResource(id = R.drawable.ic_play),
                         contentDescription = "",
                         modifier = Modifier
-                            .clickable(onClick = {
-                                if (audioFile != null) {
-                                    audioPlayer.playFile(audioFile)
-                                }
-                            })
                             .size(30.dp)
+                            .clickable(onClick = {
+                                mediaPlayer?.start()
+                                object : Runnable {
+                                    override fun run() {
+                                        durationScale =
+                                            mediaPlayer?.getCurrentPositionInMmSs()
+                                        handler.postDelayed(this, 1000)
+                                    }
+                                }.run()
+                                isPlaying = true
+                            })
                     )
+                } else {
                     Icon(
-                        painter = painterResource(id = R.drawable.ic_pause),
+                        painter = painterResource(R.drawable.ic_pause),
                         contentDescription = "",
                         modifier = Modifier
-                            .clickable(onClick = {
-                                if (audioFile != null) {
-                                    audioPlayer.stop()
-                                }
-                            })
                             .size(30.dp)
+                            .clickable(onClick = {
+                                mediaPlayer?.pause()
+                                isPlaying = false
+                            })
                     )
                 }
             }
+        }
+        if (mediaPlayer?.isPlaying == true) {
+            mediaPlayer?.stop()
         }
     }
 
@@ -545,8 +549,8 @@ class MainActivity : ComponentActivity() {
 
                 Column {
                     val file = File(fileItem.toString())
-                    var type = ""
-                    var fileSize = 0L
+                    var type: String
+                    var fileSize: Long
                     context.let {
                         val cR: ContentResolver = it.contentResolver
                         val mime = MimeTypeMap.getSingleton()
@@ -574,7 +578,7 @@ class MainActivity : ComponentActivity() {
                 border = BorderStroke(1.dp, color = Color.Black)
             ) {
                 Image(
-                    painter = rememberImagePainter(data = cameraImage),
+                    painter = rememberAsyncImagePainter(model = cameraImage),
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
@@ -615,13 +619,12 @@ class MainActivity : ComponentActivity() {
                 border = BorderStroke(1.dp, color = Color.Black)
             ) {
                 Image(
-                    painter = rememberImagePainter(
-                        data = video?.let {
-                            getThumbnail(
-                                context,
-                                it
-                            )
-                        }
+                    painter = rememberAsyncImagePainter(model = video?.let {
+                        getThumbnail(
+                            context,
+                            it
+                        )
+                    }
                     ),
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
@@ -634,7 +637,7 @@ class MainActivity : ComponentActivity() {
                 )
             }
             Image(
-                painter = rememberImagePainter(data = R.drawable.ic_play_grey),
+                painter = rememberAsyncImagePainter(model = R.drawable.ic_play_grey),
                 contentDescription = null,
                 modifier = Modifier
                     .size(50.dp)
@@ -662,76 +665,6 @@ class MainActivity : ComponentActivity() {
             })
         ) {
             onDispose { exoPlayer.release() }
-        }
-    }
-
-    @Composable
-    fun AudioPlayer(context: Context, file: File, mediaPlayer: MediaPlayer?) {
-        var durationScale by remember {
-            mutableStateOf(mediaPlayer?.getDurationInMmSs())
-        }
-        var isPlaying by remember {
-            mutableStateOf(false)
-        }
-
-        val handler = Handler()
-        Card(
-            border = BorderStroke(width = Dp.Hairline, color = Color.Black),
-            shape = RoundedCornerShape(10.dp)
-        ) {
-            Row(
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = ImageVector.vectorResource(id = R.drawable.ic_recorder),
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(50.dp)
-                )
-                mediaPlayer?.setOnCompletionListener {
-                    isPlaying = false
-                    durationScale = mediaPlayer.getDurationInMmSs()
-                }
-
-                Text(text = "Audio $durationScale")
-
-                if (!isPlaying) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_play),
-                        contentDescription = "",
-                        modifier = Modifier
-                            .size(30.dp)
-                            .clickable(onClick = {
-                                mediaPlayer?.start()
-                                object : Runnable {
-                                    override fun run() {
-                                        try {
-                                            durationScale =
-                                                mediaPlayer
-                                                    ?.getCurrentPositionInMmSs()
-                                                    .toString()
-                                        } catch (e: Exception) {
-                                        }
-                                        handler.postDelayed(this, 1000)
-                                    }
-                                }.run()
-                                isPlaying = true
-                            })
-                    )
-                } else {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_pause),
-                        contentDescription = "",
-                        modifier = Modifier
-                            .size(30.dp)
-                            .clickable(onClick = {
-                                mediaPlayer?.pause()
-                                isPlaying = false
-                            })
-                    )
-                }
-            }
         }
     }
 
@@ -808,60 +741,5 @@ class MainActivity : ComponentActivity() {
             )
         }
 
-    }
-
-    @Composable
-    fun DisplayLocation(modifier: Modifier = Modifier, location: com.tilicho.flexchatbox.Location) {
-        val context = LocalContext.current
-        val customLinkifyTextView = remember {
-            TextView(context)
-        }
-
-        Column(modifier = Modifier
-            .border(width = 1.dp, color = Color.Black, shape = RoundedCornerShape(12.dp))
-            .width(300.dp)) {
-            Row(modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 12.dp),
-                horizontalArrangement = Arrangement.Start) {
-                Text(text = "${location.location?.longitude},${location.location?.latitude}")
-            }
-
-            Row(modifier = Modifier
-                .fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-
-                Column(
-                    modifier = Modifier
-                        .border(width = 1.dp,
-                            color = Color.Black,
-                            shape = RoundedCornerShape(12.dp))
-                        .width(300.dp)
-                        .padding(6.dp)
-                        .wrapContentHeight()
-                ) {
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        Text(text = "Latitude: ${location.location?.latitude}", fontSize = 16.sp)
-                        Text(text = "Longitude: ${location.location?.longitude}", fontSize = 16.sp)
-                        Text(text = "Altitude: ${location.location?.altitude}", fontSize = 16.sp)
-                    }
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth(), horizontalArrangement = Arrangement.End
-                    ) {
-                        AndroidView(modifier = modifier,
-                            factory = { customLinkifyTextView }) { textView ->
-                            textView.text = location.url
-                            LinkifyCompat.addLinks(textView, Linkify.ALL)
-                            Linkify.addLinks(
-                                textView, Patterns.PHONE, "tel:",
-                                Linkify.sPhoneNumberMatchFilter, Linkify.sPhoneNumberTransformFilter
-                            )
-                            textView.movementMethod = LinkMovementMethod.getInstance()
-                        }
-                    }
-
-                }
-            }
-        }
     }
 }
