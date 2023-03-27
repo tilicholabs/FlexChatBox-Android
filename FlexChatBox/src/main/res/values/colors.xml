@@ -9,4 +9,7 @@
     <color name="white">#FFFFFFFF</color>
 
     <color name="c_placeholder">#B8B8B8</color>
+    <color name="c_c0e5ff">#C0E5FF</color>
+    <color name="c_0096ff">#0096FF</color>
+    <color name="c_ebeef1">#EBEEF1</color>
 </resources>

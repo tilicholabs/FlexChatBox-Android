@@ -7,6 +7,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
+import android.widget.Toast
 import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -34,6 +35,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.Button
 import androidx.compose.material.Card
 import androidx.compose.material.Divider
@@ -67,6 +69,9 @@ import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.vectorResource
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -95,6 +100,7 @@ import com.tilicho.flexchatbox.utils.getImageUri
 import com.tilicho.flexchatbox.utils.getLocation
 import com.tilicho.flexchatbox.utils.getMediaType
 import com.tilicho.flexchatbox.utils.getThumbnail
+import com.tilicho.flexchatbox.utils.isLocationEnabled
 import com.tilicho.flexchatbox.utils.navigateToAppSettings
 import com.tilicho.flexchatbox.utils.openFiles
 import kotlinx.coroutines.delay
@@ -133,7 +139,11 @@ fun ChatBox(
         mutableStateOf<File?>(null)
     }
 
-    val isRecording by remember {
+    var audioFilePath by remember {
+        mutableStateOf<String?>(String.empty())
+    }
+
+    var isRecording by remember {
         mutableStateOf(false)
     }
 
@@ -282,16 +292,20 @@ fun ChatBox(
                 showSettingsDialog = true
             }
             if (isGranted) {
-                val currLocation = getLocation(context)
-                val latLong =
-                    (currLocation?.latitude).toString() + "," + (currLocation?.longitude).toString()
-                location = Location(
-                    currLocation,
-                    LOCATION_URL + latLong
-                )
-                currentLocation(location)
-                isPermissionPermanentlyDenied = false
-                showDialog = false
+                if (!isLocationEnabled(context)) {
+                    Toast.makeText(context,  R.string.enable_location, Toast.LENGTH_LONG).show()
+                } else {
+                    val currLocation = getLocation(context)
+                    val latLong =
+                        (currLocation?.latitude).toString() + "," + (currLocation?.longitude).toString()
+                    location = Location(
+                        currLocation,
+                        LOCATION_URL + latLong
+                    )
+                    currentLocation(location)
+                    isPermissionPermanentlyDenied = false
+                    showDialog = false
+                }
             }
         }
 
@@ -366,7 +380,8 @@ fun ChatBox(
                     Text(
                         text = stringResource(id = R.string.hint),
                         color = colorResource(id = R.color.c_placeholder),
-                        fontSize = 18.sp
+                        fontSize = 18.sp,
+                        fontFamily = FontFamily(Font(R.font.opensans_regular))
                     )
                 },
                 colors = TextFieldDefaults.textFieldColors(
@@ -382,6 +397,7 @@ fun ChatBox(
                     ),
                 singleLine = false,
                 maxLines = 4,
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences)
             )
         }
 
@@ -411,6 +427,21 @@ fun ChatBox(
                     }
 
                     Sources.VOICE -> {
+                        var iconState by remember {
+                            mutableStateOf(Color.Transparent)
+                        }
+                        if (isPermissionPermanentlyDenied) {
+                            iconState = Color(0xffEBEEF1)
+                        }
+
+                        var pressedX = 0F
+                        var pressedY = 0F
+                        var fileName by remember {
+                            mutableStateOf("")
+                        }
+                        var isPressed by remember {
+                            mutableStateOf(false)
+                        }
 
                         Image(
                             imageVector = ImageVector.vectorResource(R.drawable.ic_mic),
@@ -424,21 +455,23 @@ fun ChatBox(
                                                     Manifest.permission.RECORD_AUDIO)
                                             ) {
                                                 try {
-                                                    File(context.cacheDir, "audio.mp3").also {
+                                                    context.cacheDir.deleteRecursively()
+                                                    File(context.cacheDir, System.currentTimeMillis().toString() + "_audio.mp3").also {
                                                         recorder.start(it)
+                                                        isRecording = true
                                                         audioFile = it
                                                     }
                                                     awaitRelease()
                                                 } finally {
                                                     try {
                                                         recorder.stop()
+                                                        isRecording = false
                                                         audioFile?.let { it1 ->
                                                             recordedAudio.invoke(it1)
                                                         }
                                                     } catch (_: Exception) {
                                                         // do nothing
                                                     }
-
                                                 }
                                             } else {
                                                 recordAudioPermissionState.launchPermissionRequest()
@@ -496,7 +529,7 @@ fun SourceImage(icon: Int, isDenied: Boolean, onClickIcon: () -> Unit) {
         mutableStateOf(Color.Transparent)
     }
     if (isDenied) {
-        iconState = Color(0xffEBEEF1)
+        iconState = colorResource(id = R.color.c_ebeef1)
     }
     Box(
         contentAlignment = Alignment.Center,
@@ -530,7 +563,7 @@ fun DisplayContacts(
         }, properties = DialogProperties(dismissOnBackPress = true, dismissOnClickOutside = true)
     ) {
         Surface(
-            color = Color(0xffffffff),
+            color = Color.White,
             shape = RoundedCornerShape(dimensionResource(id = R.dimen.spacing_10dp)),
             modifier = Modifier
                 .fillMaxSize()
@@ -547,12 +580,16 @@ fun DisplayContacts(
                         .padding(start = dimensionResource(id = R.dimen.spacing_10dp)),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(text = stringResource(id = R.string.contacts), textAlign = TextAlign.Center, fontSize = 20.sp)
+                    Text(text = stringResource(id = R.string.contacts),
+                        textAlign = TextAlign.Center,
+                        fontSize = 20.sp,
+                        fontFamily = FontFamily(Font(R.font.opensans_regular)))
                     Spacer(modifier = Modifier.weight(1f))
                     Button(onClick = {
                         selectedContactsCallBack.invoke(selectedContacts)
                     }) {
-                        Text(text = stringResource(id = R.string.send))
+                        Text(text = stringResource(id = R.string.send),
+                            fontFamily = FontFamily(Font(R.font.opensans_regular)))
                     }
                 }
 
@@ -587,8 +624,14 @@ fun DisplayContacts(
                                 }), verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column {
-                                contact.name?.let { Text(text = it) }
-                                contact.mobileNumber?.let { Text(text = it) }
+                                contact.name?.let {
+                                    Text(text = it,
+                                        fontFamily = FontFamily(Font(R.font.opensans_regular)))
+                                }
+                                contact.mobileNumber?.let {
+                                    Text(text = it,
+                                        fontFamily = FontFamily(Font(R.font.opensans_regular)))
+                                }
                             }
                             Spacer(modifier = Modifier.weight(1f))
                             Icon(
@@ -634,16 +677,25 @@ fun AudioRecordingUi() {
         )
         Spacer(modifier = Modifier.width(dimensionResource(id = R.dimen.spacing_10dp)))
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(text = stringResource(id = R.string.recording_audio), color = Color.Red)
-            Text(text = stringResource(id = R.string.swipe_to_cancel), fontSize = 12.sp, color = Color.Red)
+            Text(text = stringResource(id = R.string.recording_audio),
+                color = Color.Red,
+                fontFamily = FontFamily(Font(R.font.opensans_regular)))
+            Text(text = stringResource(id = R.string.swipe_to_cancel),
+                fontSize = 12.sp,
+                color = Color.Red,
+                fontFamily = FontFamily(Font(R.font.opensans_regular)))
         }
 
         Spacer(modifier = Modifier.width(dimensionResource(id = R.dimen.spacing_10dp)))
 
         if (seconds < 10) {
-            Text(text = "0$minutes:0$seconds", color = Color.Red)
+            Text(text = "0$minutes:0$seconds",
+                color = Color.Red,
+                fontFamily = FontFamily(Font(R.font.opensans_regular)))
         } else {
-            Text(text = "0$minutes:$seconds", color = Color.Red)
+            Text(text = "0$minutes:$seconds",
+                color = Color.Red,
+                fontFamily = FontFamily(Font(R.font.opensans_regular)))
         }
     }
 }
@@ -702,7 +754,7 @@ fun GalleryPreviewUI(
             }
         }
 
-        Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_80)))
+        Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_70)))
 
         LazyRow(
             modifier = Modifier
@@ -728,7 +780,7 @@ fun GalleryPreviewUI(
                             }
                             .border(
                                 width = dimensionResource(id = R.dimen.spacing_00),
-                                color = if (previewUri == item) Color(0xff0096FF) else Color.Transparent
+                                color = if (previewUri == item) colorResource(id = R.color.c_0096ff) else Color.Transparent
                             )
                     )
                 } else if (getMediaType(context, item) == MediaType.MediaTypeVideo) {
@@ -750,7 +802,7 @@ fun GalleryPreviewUI(
                                     }
                                     .border(
                                         width = dimensionResource(id = R.dimen.spacing_00),
-                                        color = if (previewUri == item) Color(0xff0096FF) else Color.Transparent
+                                        color = if (previewUri == item) colorResource(id = R.color.c_0096ff) else Color.Transparent
                                     )
                             )
                         }
@@ -767,7 +819,7 @@ fun GalleryPreviewUI(
             }
         }
 
-        Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_50)))
+        Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_40)))
 
         Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.TopEnd) {
             if (getMediaType(context, previewUri) == MediaType.MediaTypeImage) {
@@ -787,7 +839,7 @@ fun GalleryPreviewUI(
 
         }
 
-        Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_50)))
+        Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_40)))
 
         Row(horizontalArrangement = Arrangement.Center, modifier = Modifier.fillMaxWidth()) {
             Card(shape = RectangleShape,
@@ -804,10 +856,10 @@ fun GalleryPreviewUI(
             }
         }
 
-
         Row(
             horizontalArrangement = Arrangement.End, modifier = Modifier
                 .fillMaxWidth()
+                .padding(dimensionResource(id = R.dimen.spacing_10))
         ) {
             Image(
                 imageVector = ImageVector.vectorResource(R.drawable.ic_ok),
@@ -865,11 +917,12 @@ fun VideoView(context: Context, videoUri: String) {
         }
 
     DisposableEffect(
-        AndroidView(modifier = Modifier.height(dimensionResource(id = R.dimen.preview_image_height)), factory = {
-            StyledPlayerView(context).apply {
-                player = exoPlayer
-            }
-        })
+        AndroidView(modifier = Modifier.height(dimensionResource(id = R.dimen.preview_image_height)),
+            factory = {
+                StyledPlayerView(context).apply {
+                    player = exoPlayer
+                }
+            })
     ) {
         onDispose { exoPlayer.release() }
     }
@@ -882,20 +935,28 @@ fun ShowNavigateToAppSettingsDialog(context: Context, onDismissCallback: (Boolea
             onDismissCallback(false)
         }
     ) {
-        Card {
+        Card(shape = RoundedCornerShape(dimensionResource(id = R.dimen.spacing_40)),
+            border = BorderStroke(
+                dimensionResource(id = R.dimen.spacing_00), color = colorResource(
+                    id = R.color.c_c0e5ff))) {
             Column(modifier = Modifier.padding(dimensionResource(id = R.dimen.spacing_30))) {
-                Text(text = stringResource(id = R.string.permission_denied))
-
+                Text(text = stringResource(id = R.string.permission_denied),
+                    fontFamily = FontFamily(Font(R.font.opensans_regular)))
+                Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_20)))
                 Row(modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End) {
-                    Text(text = stringResource(id = R.string.cancel), color = Color.Blue,
+                    Text(text = stringResource(id = R.string.cancel),
+                        color = Color.Blue,
+                        fontFamily = FontFamily(Font(R.font.opensans_regular)),
                         modifier = Modifier.clickable {
                             onDismissCallback(false)
                         })
 
-                    Spacer(modifier = Modifier.width(dimensionResource(id = R.dimen.spacing_30)))
+                    Spacer(modifier = Modifier.width(dimensionResource(id = R.dimen.spacing_40)))
 
-                    Text(text = stringResource(id = R.string.settings), color = Color.Blue,
+                    Text(text = stringResource(id = R.string.settings),
+                        fontFamily = FontFamily(Font(R.font.opensans_regular)),
+                        color = Color.Blue,
                         modifier = Modifier.clickable {
                             onDismissCallback(false)
                             context.navigateToAppSettings()

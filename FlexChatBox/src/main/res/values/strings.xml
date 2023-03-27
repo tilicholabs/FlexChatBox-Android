@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="hint">Type your text here</string>
-    <string name="permission_denied">Permission is denied \n Please goto app settings and enable permissions.</string>
+    <string name="permission_denied">Permission is denied. Please goto app settings and enable permissions.</string>
     <string name="recording_audio">Recording audio</string>
     <string name="swipe_to_cancel">Swipe to cancel</string>
     <string name="cancel">Cancel</string>
@@ -9,4 +9,5 @@
     <string name="contacts">Contacts</string>
     <string name="send">Send</string>
     <string name="avatar">avatar</string>
+    <string name="enable_location">Please enable device location.</string>
 </resources>

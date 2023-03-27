@@ -20,7 +20,6 @@ import androidx.annotation.RequiresApi
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -55,9 +54,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.vectorResource
-import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -68,9 +69,9 @@ import coil.compose.rememberAsyncImagePainter
 import com.google.android.exoplayer2.ExoPlayer
 import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.ui.StyledPlayerView
-import com.tilicho.flexchatbox.audioPlayer.AndroidAudioPlayer
 import com.tilicho.flexchatbox.enums.Sources
 import com.tilicho.flexchatbox.ui.theme.FlexChatBoxTheme
+import com.tilicho.flexchatbox.ui.theme.ItemsBackground
 import com.tilicho.flexchatbox.uimodel.Camera
 import com.tilicho.flexchatbox.uimodel.ChatDataModel
 import com.tilicho.flexchatbox.uimodel.Contacts
@@ -259,23 +260,25 @@ class MainActivity : ComponentActivity() {
                     val text = chatItem.textFieldValue
                     item {
                         Box(
+                            contentAlignment = Alignment.BottomStart,
                             modifier = Modifier
-                                .padding(10.dp)
-                                .border(
-                                    width = 1.dp,
-                                    color = Color.Black,
-                                    shape = RoundedCornerShape(10.dp)
-                                )
+                                .background(color = ItemsBackground,
+                                    shape = RoundedCornerShape(20.dp, 20.dp, 0.dp, 20.dp))
+                                .wrapContentWidth()
+                                .wrapContentHeight()
                         )
                         {
                             text?.let {
                                 Text(
                                     text = it,
                                     fontSize = 16.sp,
-                                    modifier = Modifier.padding(10.dp)
+                                    modifier = Modifier
+                                        .padding(dimensionResource(id = R.dimen.spacing_10dp)),
+                                    fontFamily = FontFamily(Font(R.font.opensans_regular))
                                 )
                             }
                         }
+                        Spacer(modifier = Modifier.height(10.dp))
                     }
                 }
             }
@@ -284,11 +287,10 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     fun SetContactItemCell(contacts: List<ContactData>?) {
-        Log.d("contacts", contacts.toString())
         if (contacts?.isNotEmpty() == true && contacts.size <= 1) {
             Card(
-                shape = RoundedCornerShape(10.dp),
-                border = BorderStroke(1.dp, color = Color.Black)
+                shape = RoundedCornerShape(15.dp, 15.dp, 0.dp, 15.dp),
+                backgroundColor = ItemsBackground
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -303,8 +305,14 @@ class MainActivity : ComponentActivity() {
                     )
                     Spacer(modifier = Modifier.width(10.dp))
                     Column {
-                        contacts[0].name?.let { it1 -> Text(text = it1) }
-                        contacts[0].mobileNumber?.let { it1 -> Text(text = it1) }
+                        contacts[0].name?.let { it1 ->
+                            Text(text = it1,
+                                fontFamily = FontFamily(Font(R.font.opensans_regular)))
+                        }
+                        contacts[0].mobileNumber?.let { it1 ->
+                            Text(text = it1,
+                                fontFamily = FontFamily(Font(R.font.opensans_regular)))
+                        }
                     }
                 }
                 Spacer(modifier = Modifier.height(10.dp))
@@ -312,8 +320,8 @@ class MainActivity : ComponentActivity() {
             }
         } else if (contacts?.isNotEmpty() == true) {
             Card(
-                shape = RoundedCornerShape(10.dp),
-                border = BorderStroke(1.dp, color = Color.Black)
+                shape = RoundedCornerShape(15.dp, 15.dp, 0.dp, 15.dp),
+                backgroundColor = ItemsBackground
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -327,7 +335,8 @@ class MainActivity : ComponentActivity() {
                         contentDescription = "",
                     )
                     Spacer(modifier = Modifier.width(10.dp))
-                    Text(text = "Contact 1 and ${contacts.size - 1} \n other contacts")
+                    Text(text = "Contact 1 and ${contacts.size - 1} \n other contacts",
+                        fontFamily = FontFamily(Font(R.font.opensans_regular)))
                 }
             }
         }
@@ -360,8 +369,8 @@ class MainActivity : ComponentActivity() {
             val videoThumbnail = getThumbnail(context = context, galleryItem)
             Box(contentAlignment = Alignment.Center) {
                 Card(
-                    shape = RoundedCornerShape(10.dp),
-                    border = BorderStroke(1.dp, color = Color.Black)
+                    shape = RoundedCornerShape(15.dp, 15.dp, 0.dp, 15.dp),
+                    border = BorderStroke(width = 1.dp, color = ItemsBackground)
                 ) {
                     Image(
                         painter = rememberAsyncImagePainter(model = videoThumbnail),
@@ -376,7 +385,7 @@ class MainActivity : ComponentActivity() {
                     )
                 }
                 Image(
-                    painter = rememberAsyncImagePainter(model = R.drawable.ic_play),
+                    painter = rememberAsyncImagePainter(model = R.drawable.ic_play_circle),
                     contentDescription = null,
                     modifier = Modifier
                         .size(50.dp)
@@ -385,8 +394,8 @@ class MainActivity : ComponentActivity() {
 
         } else {
             Card(
-                shape = RoundedCornerShape(10.dp),
-                border = BorderStroke(1.dp, color = Color.Black)
+                shape = RoundedCornerShape(15.dp, 15.dp, 0.dp, 15.dp),
+                border = BorderStroke(width = 1.dp, color = ItemsBackground)
             ) {
                 Image(
                     painter = rememberAsyncImagePainter(model = galleryItem),
@@ -410,11 +419,8 @@ class MainActivity : ComponentActivity() {
         }
         Column(
             modifier = Modifier
-                .border(
-                    width = 1.dp,
-                    color = Color.Black,
-                    shape = RoundedCornerShape(12.dp)
-                )
+                .background(color = ItemsBackground,
+                    shape = RoundedCornerShape(15.dp, 15.dp, 0.dp, 15.dp))
                 .width(300.dp)
                 .padding(10.dp)
         ) {
@@ -425,7 +431,8 @@ class MainActivity : ComponentActivity() {
             ) {
                 Image(painterResource(id = R.drawable.image_map), contentDescription = null)
                 Spacer(modifier = Modifier.width(20.dp))
-                Text(text = "${location?.location?.longitude},${location?.location?.latitude}")
+                Text(text = "${location?.location?.longitude},${location?.location?.latitude}",
+                    fontFamily = FontFamily(Font(R.font.opensans_regular)))
             }
             Spacer(modifier = Modifier.height(5.dp))
             Divider(modifier = Modifier.background(color = Color.Black))
@@ -448,7 +455,6 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     fun SetVoiceItemCell(context: Context, audioFile: File?) {
-
         var mediaPlayer: MediaPlayer? = null
 
         if (audioFile != null) {
@@ -466,12 +472,13 @@ class MainActivity : ComponentActivity() {
         val handler = Handler()
 
         Card(
-            border = BorderStroke(width = Dp.Hairline, color = Color.Black),
-            shape = RoundedCornerShape(10.dp)
+            backgroundColor = ItemsBackground,
+            shape = RoundedCornerShape(15.dp, 15.dp, 0.dp, 15.dp)
         ) {
             Row(
                 horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(horizontal = dimensionResource(id = R.dimen.spacing_10dp))
             ) {
                 Icon(
                     imageVector = ImageVector.vectorResource(id = R.drawable.ic_recorder),
@@ -480,15 +487,19 @@ class MainActivity : ComponentActivity() {
                         .size(50.dp)
                 )
 
+                Spacer(modifier = Modifier.width(dimensionResource(id = R.dimen.spacing_20)))
+
                 mediaPlayer?.setOnCompletionListener {
                     isPlaying = false
                     durationScale = it?.getDurationInMmSs()
                 }
 
-                Text(text = "Audio $durationScale")
+                Text(text = "Audio $durationScale",
+                    fontFamily = FontFamily(Font(R.font.opensans_regular)))
+                Spacer(modifier = Modifier.width(dimensionResource(id = R.dimen.spacing_20)))
                 if (!isPlaying) {
                     Icon(
-                        painter = painterResource(id = R.drawable.ic_play),
+                        painter = painterResource(id = R.drawable.ic_play_circle),
                         contentDescription = "",
                         modifier = Modifier
                             .size(30.dp)
@@ -506,7 +517,7 @@ class MainActivity : ComponentActivity() {
                     )
                 } else {
                     Icon(
-                        painter = painterResource(R.drawable.ic_pause),
+                        painter = painterResource(R.drawable.ic_pause_circle),
                         contentDescription = "",
                         modifier = Modifier
                             .size(30.dp)
@@ -528,17 +539,16 @@ class MainActivity : ComponentActivity() {
         Box(
             contentAlignment = Alignment.BottomStart,
             modifier = Modifier
-                .border(
-                    shape = RoundedCornerShape(10.dp),
-                    width = 1.dp,
-                    color = Color.Black
-                )
+                .background(shape = RoundedCornerShape(15.dp, 15.dp, 0.dp, 15.dp),
+                    color = ItemsBackground)
                 .wrapContentWidth()
                 .wrapContentHeight()
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(10.dp)
+                modifier = Modifier
+                    .padding(10.dp)
+                    .background(color = ItemsBackground)
             ) {
                 Image(
                     imageVector = ImageVector.vectorResource(id = R.drawable.ic_uploaded_file),
@@ -561,9 +571,10 @@ class MainActivity : ComponentActivity() {
                         fileSize = fileDescriptor?.length!!
                     }
                     val fileName = file.name + "." + type
-                    Text(text = fileName)
+                    Text(text = fileName, fontFamily = FontFamily(Font(R.font.opensans_regular)))
                     Spacer(modifier = Modifier.height(2.dp))
-                    Text(text = (fileSize / 1024).toString() + " mb")
+                    Text(text = (fileSize / 1024).toString() + " mb",
+                        fontFamily = FontFamily(Font(R.font.opensans_regular)))
                 }
             }
         }
@@ -574,8 +585,8 @@ class MainActivity : ComponentActivity() {
     fun SetCameraPictureItemCell(cameraImage: Uri?) {
         cameraImage?.let {
             Card(
-                shape = RoundedCornerShape(10.dp),
-                border = BorderStroke(1.dp, color = Color.Black)
+                shape = RoundedCornerShape(15.dp, 15.dp, 0.dp, 15.dp),
+                border = BorderStroke(width = 1.dp, color = ItemsBackground)
             ) {
                 Image(
                     painter = rememberAsyncImagePainter(model = cameraImage),
@@ -614,10 +625,8 @@ class MainActivity : ComponentActivity() {
         }
 
         Box(contentAlignment = Alignment.Center) {
-            Card(
-                shape = RoundedCornerShape(10.dp),
-                border = BorderStroke(1.dp, color = Color.Black)
-            ) {
+            Card(shape = RoundedCornerShape(15.dp, 15.dp, 0.dp, 15.dp),
+                border = BorderStroke(width = 1.dp, color = ItemsBackground)) {
                 Image(
                     painter = rememberAsyncImagePainter(model = video?.let {
                         getThumbnail(
@@ -637,7 +646,7 @@ class MainActivity : ComponentActivity() {
                 )
             }
             Image(
-                painter = rememberAsyncImagePainter(model = R.drawable.ic_play_grey),
+                painter = rememberAsyncImagePainter(model = R.drawable.ic_play_circle),
                 contentDescription = null,
                 modifier = Modifier
                     .size(50.dp)
