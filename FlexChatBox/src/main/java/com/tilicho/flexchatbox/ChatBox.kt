@@ -34,12 +34,14 @@ import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.Button
 import androidx.compose.material.Card
 import androidx.compose.material.Divider
 import androidx.compose.material.Icon
+import androidx.compose.material.IconButton
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.material.TextField
@@ -60,6 +62,7 @@ import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -108,6 +111,7 @@ import java.io.File
 import kotlin.time.Duration.Companion.seconds
 
 @OptIn(ExperimentalPermissionsApi::class)
+@SuppressLint("SuspiciousIndentation")
 @RequiresApi(Build.VERSION_CODES.Q)
 @Composable
 fun ChatBox(
@@ -139,11 +143,7 @@ fun ChatBox(
         mutableStateOf<File?>(null)
     }
 
-    var audioFilePath by remember {
-        mutableStateOf<String?>(String.empty())
-    }
-
-    var isRecording by remember {
+    val isRecording by remember {
         mutableStateOf(false)
     }
 
@@ -204,7 +204,6 @@ fun ChatBox(
                     })
             }
         }
-
     }
 
     val cameraLauncher =
@@ -380,31 +379,41 @@ fun ChatBox(
                     Text(
                         text = stringResource(id = R.string.hint),
                         color = colorResource(id = R.color.c_placeholder),
-                        fontSize = 18.sp,
-                        fontFamily = FontFamily(Font(R.font.opensans_regular))
+                        fontSize = 18.sp
                     )
                 },
                 colors = TextFieldDefaults.textFieldColors(
-                    backgroundColor = Color.Transparent,
+                    backgroundColor = colorResource(id = R.color.c_f6f6f6),
                     focusedIndicatorColor = Color.Transparent,
                     unfocusedIndicatorColor = Color.Transparent,
                 ),
                 modifier = Modifier
-                    .weight(4f)
-                    .border(
-                        shape = RoundedCornerShape(dimensionResource(id = R.dimen.spacing_20)),
-                        border = BorderStroke(1.dp, color = Color.Black)
-                    ),
+                    .weight(4f),
                 singleLine = false,
                 maxLines = 4,
+                shape = RoundedCornerShape(dimensionResource(id = R.dimen.spacing_60)),
+                trailingIcon = {
+                    IconButton(
+                        onClick = {
+                            onClickSend.invoke(textFieldValue)
+                            textFieldValue = String.empty()
+                        }
+                    ) {
+                        Icon(
+                            modifier = Modifier.align(Alignment.Bottom),
+                            imageVector = ImageVector.vectorResource(id = R.drawable.ic_send),
+                            contentDescription = null
+                        )
+                    }
+                },
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences)
             )
         }
 
         Row(
             modifier = Modifier
-                .weight(2f)
-                .padding(dimensionResource(id = R.dimen.spacing_10)),
+                .padding(dimensionResource(id = R.dimen.spacing_10))
+                .weight(1f),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
 
@@ -431,55 +440,63 @@ fun ChatBox(
                             mutableStateOf(Color.Transparent)
                         }
                         if (isPermissionPermanentlyDenied) {
-                            iconState = Color(0xffEBEEF1)
+                            iconState = colorResource(id = R.color.c_ebeef1)
                         }
-
-                        var pressedX = 0F
-                        var pressedY = 0F
-                        var fileName by remember {
-                            mutableStateOf("")
-                        }
-                        var isPressed by remember {
-                            mutableStateOf(false)
-                        }
-
-                        Image(
-                            imageVector = ImageVector.vectorResource(R.drawable.ic_mic),
-                            contentDescription = null,
+                        Box(
+                            contentAlignment = Alignment.Center,
                             modifier = Modifier
-                                .padding(dimensionResource(id = R.dimen.spacing_20))
-                                .pointerInput(Unit) {
-                                    detectTapGestures(
-                                        onPress = {
-                                            if (checkPermission(context,
-                                                    Manifest.permission.RECORD_AUDIO)
-                                            ) {
-                                                try {
-                                                    context.cacheDir.deleteRecursively()
-                                                    File(context.cacheDir, System.currentTimeMillis().toString() + "_audio.mp3").also {
-                                                        recorder.start(it)
-                                                        isRecording = true
-                                                        audioFile = it
-                                                    }
-                                                    awaitRelease()
-                                                } finally {
+                                .clip(shape = CircleShape)
+                                .background(color = colorResource(id = R.color.c_2ba6ff))
+                        ) {
+                            Image(
+                                imageVector = ImageVector.vectorResource(R.drawable.ic_mic),
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .padding(dimensionResource(id = R.dimen.spacing_30))
+                                    .pointerInput(Unit) {
+                                        detectTapGestures(
+                                            onTap = {
+                                                Toast
+                                                    .makeText(context, "onTap", Toast.LENGTH_SHORT)
+                                                    .show()
+                                            },
+                                            onPress = {
+                                                Toast
+                                                    .makeText(
+                                                        context,
+                                                        "onPress",
+                                                        Toast.LENGTH_SHORT
+                                                    )
+                                                    .show()
+                                                if (checkPermission(
+                                                        context,
+                                                        Manifest.permission.RECORD_AUDIO
+                                                    )
+                                                ) {
                                                     try {
-                                                        recorder.stop()
-                                                        isRecording = false
-                                                        audioFile?.let { it1 ->
-                                                            recordedAudio.invoke(it1)
+                                                        File(context.cacheDir, "audio.mp3").also {
+                                                            recorder.start(it)
+                                                            audioFile = it
                                                         }
-                                                    } catch (_: Exception) {
-                                                        // do nothing
+                                                        awaitRelease()
+                                                    } finally {
+                                                        try {
+                                                            recorder.stop()
+                                                            audioFile?.let {
+                                                                recordedAudio.invoke(it)
+                                                            }
+                                                        } catch (_: Exception) {
+                                                            // do nothing
+                                                        }
                                                     }
+                                                } else {
+                                                    recordAudioPermissionState.launchPermissionRequest()
                                                 }
-                                            } else {
-                                                recordAudioPermissionState.launchPermissionRequest()
-                                            }
-                                        }
-                                    )
-                                }
-                        )
+                                            },
+                                        )
+                                    }
+                            )
+                        }
                     }
 
                     Sources.CONTACTS -> {
@@ -506,19 +523,7 @@ fun ChatBox(
                     else -> {}
                 }
             }
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier.clickable(onClick = {
-                    onClickSend.invoke(textFieldValue)
-                    textFieldValue = String.empty()
-                })
-            ) {
-                Icon(
-                    imageVector = ImageVector.vectorResource(sendIconState),
-                    contentDescription = null,
-                    modifier = Modifier.padding(dimensionResource(id = R.dimen.spacing_20))
-                )
-            }
+
         }
     }
 }
@@ -526,24 +531,26 @@ fun ChatBox(
 @Composable
 fun SourceImage(icon: Int, isDenied: Boolean, onClickIcon: () -> Unit) {
     var iconState by remember {
-        mutableStateOf(Color.Transparent)
+        mutableStateOf(R.color.c_2ba6ff)
     }
+
     if (isDenied) {
-        iconState = colorResource(id = R.color.c_ebeef1)
+        iconState = R.color.c_ebeef1
     }
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
+            .clip(shape = CircleShape)
+            .background(color = colorResource(id = iconState))
             .clickable(onClick = {
                 onClickIcon.invoke()
             })
     ) {
-        Icon(
+        Image(
             imageVector = ImageVector.vectorResource(icon),
             contentDescription = null,
             modifier = Modifier
-                .background(color = iconState)
-                .padding(dimensionResource(id = R.dimen.spacing_20)),
+                .padding(dimensionResource(id = R.dimen.spacing_30)),
         )
     }
 
@@ -851,7 +858,8 @@ fun GalleryPreviewUI(
                     imageVector = ImageVector.vectorResource(id = R.drawable.ic_gallery),
                     contentDescription = null, modifier = Modifier.padding(
                         dimensionResource(id = R.dimen.spacing_30)
-                    )
+                    ),
+                    colorFilter = ColorFilter.tint(Color.Black)
                 )
             }
         }
