@@ -10,6 +10,7 @@
 
     <color name="c_placeholder">#B8B8B8</color>
     <color name="c_c0e5ff">#C0E5FF</color>
-    <color name="c_0096ff">#0096FF</color>
+    <color name="c_2ba6ff">#2BA6FF</color>
     <color name="c_ebeef1">#EBEEF1</color>
+    <color name="c_f6f6f6">#F6F6F6</color>
 </resources>

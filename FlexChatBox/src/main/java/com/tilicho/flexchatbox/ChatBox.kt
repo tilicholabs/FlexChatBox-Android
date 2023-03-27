@@ -787,7 +787,7 @@ fun GalleryPreviewUI(
                             }
                             .border(
                                 width = dimensionResource(id = R.dimen.spacing_00),
-                                color = if (previewUri == item) colorResource(id = R.color.c_0096ff) else Color.Transparent
+                                color = if (previewUri == item) colorResource(id = R.color.c_ebeef1) else Color.Transparent
                             )
                     )
                 } else if (getMediaType(context, item) == MediaType.MediaTypeVideo) {
@@ -809,7 +809,7 @@ fun GalleryPreviewUI(
                                     }
                                     .border(
                                         width = dimensionResource(id = R.dimen.spacing_00),
-                                        color = if (previewUri == item) colorResource(id = R.color.c_0096ff) else Color.Transparent
+                                        color = if (previewUri == item) colorResource(id = R.color.c_ebeef1) else Color.Transparent
                                     )
                             )
                         }
