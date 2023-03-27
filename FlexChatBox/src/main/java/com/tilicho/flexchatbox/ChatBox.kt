@@ -8,20 +8,17 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
-import android.os.Handler
-import android.os.Looper
 import android.provider.Settings
-import android.util.Log
-import android.view.MotionEvent
+import android.widget.Toast
 import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -38,11 +35,13 @@ import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Button
 import androidx.compose.material.Card
 import androidx.compose.material.Divider
 import androidx.compose.material.Icon
+import androidx.compose.material.IconButton
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.material.TextField
@@ -63,10 +62,11 @@ import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.pointer.pointerInteropFilter
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.dimensionResource
@@ -105,6 +105,7 @@ import kotlinx.coroutines.delay
 import java.io.File
 import kotlin.time.Duration.Companion.seconds
 
+@SuppressLint("SuspiciousIndentation")
 @OptIn(ExperimentalPermissionsApi::class, ExperimentalComposeUiApi::class)
 @RequiresApi(Build.VERSION_CODES.Q)
 @Composable
@@ -297,24 +298,35 @@ fun ChatBox(
                     )
                 },
                 colors = TextFieldDefaults.textFieldColors(
-                    backgroundColor = Color.Transparent,
+                    backgroundColor = Color(0xFFF6F6F6),
                     focusedIndicatorColor = Color.Transparent,
                     unfocusedIndicatorColor = Color.Transparent,
                 ),
                 modifier = Modifier
-                    .weight(4f)
-                    .border(
-                        shape = RoundedCornerShape(10.dp),
-                        border = BorderStroke(1.dp, color = Color.Black)
-                    ),
+                    .weight(4f),
                 singleLine = false,
                 maxLines = 4,
+                shape = RoundedCornerShape(25.dp),
+                trailingIcon = {
+                    IconButton(
+                        onClick = {
+                            onClickSend.invoke(textFieldValue)
+                            textFieldValue = String.empty()
+                        }
+                    ) {
+                        Icon(
+                            modifier = Modifier.align(Alignment.Bottom),
+                            imageVector = ImageVector.vectorResource(id = R.drawable.ic_send),
+                            contentDescription = null
+                        )
+                    }
+                }
             )
         }
 
         Row(
             modifier = Modifier
-                .weight(2f)
+                .weight(1f)
                 .padding(bottom = 4.dp),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
@@ -372,107 +384,89 @@ fun ChatBox(
                             iconState = Color(0xffEBEEF1)
                         }
 
-                        var pressedX = 0F
+                        var pressedX by remember {
+                            mutableStateOf(0F)
+                        }
                         var fileName by remember {
                             mutableStateOf("")
                         }
                         Box(
                             contentAlignment = Alignment.Center,
+                            modifier = Modifier
+                                .clip(shape = CircleShape)
+                                .background(color = Color(0xFF2BA6FF))
                         ) {
-                            Icon(
+                            Image(
                                 imageVector = ImageVector.vectorResource(R.drawable.ic_mic),
                                 contentDescription = null,
                                 modifier = Modifier
-                                    .padding(dimensionResource(id = R.dimen.spacing_20))
-                                    .pointerInteropFilter { motionEvent ->
-                                        when (motionEvent.action) {
-                                            MotionEvent.ACTION_UP -> {
-                                                Log.d("up", audioFile?.path ?: "empty")
-                                                try {
-                                                    isPressed = false
-                                                    Log.d(
-                                                        "up",
-                                                        "record: $isRecording pressed: $isPressed"
+                                    .padding(dimensionResource(id = R.dimen.spacing_30))
+                                    .pointerInput(Unit) {
+                                        detectTapGestures(
+                                            onTap = {
+                                                Toast
+                                                    .makeText(context, "onTap", Toast.LENGTH_SHORT)
+                                                    .show()
+                                            },
+                                            onPress = {
+                                                Toast
+                                                    .makeText(
+                                                        context,
+                                                        "onPress",
+                                                        Toast.LENGTH_SHORT
                                                     )
-                                                    if (isRecording) {
-                                                        recorder.stop()
-                                                        Log.d(
-                                                            "audio up",
-                                                            audioFile?.path ?: "empty"
-                                                        )
-                                                        try {
-                                                            Handler(Looper.getMainLooper()).postDelayed(
-                                                                {
-                                                                    if (fileName.isNotEmpty()) {
-                                                                        recordedAudio.invoke(
-                                                                            File(
-                                                                                context.cacheDir,
-                                                                                fileName
-                                                                            )
-                                                                        )
-                                                                    }
-                                                                    fileName = ""
-                                                                }, 100
-                                                            )
-                                                        } catch (e: Exception) {
-                                                            Log.d("up", "$e")
-                                                        }
-                                                    }
-                                                    isRecording = false
-                                                    Log.d("up", "$isRecording")
-                                                } catch (_: Exception) {
-                                                    // do nothing
-                                                }
-                                            }
-                                            MotionEvent.ACTION_DOWN -> {
-                                                isPressed = true
+                                                    .show()
                                                 if (checkPermission(
-                                                        context, Manifest.permission.RECORD_AUDIO
+                                                        context,
+                                                        Manifest.permission.RECORD_AUDIO
                                                     )
                                                 ) {
-                                                    fileName =
-                                                        "audio${System.currentTimeMillis()}.mp3"
-                                                    File(
-                                                        context.cacheDir,
-                                                        fileName
-                                                    ).also {
-                                                        Handler(Looper.getMainLooper()).postDelayed(
-                                                            {
-                                                                pressedX = motionEvent.x
-                                                                if (isPressed) {
-                                                                    recorder.start(it)
-                                                                    isRecording = true
-                                                                    Log.d(
-                                                                        "down",
-                                                                        "recording: $isRecording"
-                                                                    )
-                                                                }
-                                                            },
-                                                            200
-                                                        )
-                                                        audioFile = it
-                                                        Log.d(
-                                                            "audio down",
-                                                            audioFile?.path ?: "empty"
-                                                        )
+                                                    try {
+                                                        File(context.cacheDir, "audio.mp3").also {
+                                                            recorder.start(it)
+                                                            audioFile = it
+                                                        }
+                                                        awaitRelease()
+                                                    } finally {
+                                                        try {
+                                                            recorder.stop()
+                                                            audioFile?.let { it1 ->
+                                                                recordedAudio.invoke(audioFile!!)
+                                                            }
+                                                        } catch (_: Exception) {
+                                                            // do nothing
+                                                        }
                                                     }
                                                 } else {
                                                     permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
                                                 }
-                                            }
-                                            MotionEvent.ACTION_MOVE -> {
-                                                if (motionEvent.x < -450) {
-                                                    Log.d(
-                                                        "move",
-                                                        "canceled ${motionEvent.x} ${pressedX}"
-                                                    )
-                                                    fileName = ""
-                                                }
-
-                                            }
-                                        }
-                                        true
+                                            },
+                                        )
                                     }
+                                /*.pointerInput(Unit) {
+                                    detectDragGesturesAfterLongPress(
+                                        onDragStart = {
+                                            Toast.makeText(context, "onDragStart", Toast.LENGTH_SHORT).show()
+//                                                isRecording = true
+                                        },
+                                        onDrag = { change, dragAmount ->
+                                            pressedX += dragAmount.x
+                                            Log.d("dragAmount_0002", pressedX.toInt().toString())
+                                            *//*if (pressedX < -600) {
+                                                    Log.d("dragAmount_0001", pressedX.toInt().toString())
+                                                    audioFile?.let { it1 ->
+                                                        recordedAudio.invoke(it1)
+                                                    }
+                                                    isRecording = false
+                                                }*//*
+                                            },
+                                            onDragEnd = {
+                                                pressedX = 0F
+                                                Toast.makeText(context, "onDragEnd", Toast.LENGTH_SHORT).show()
+                                            },
+                                        )
+                                    }*/
+
                             )
                         }
                     }
@@ -534,18 +528,6 @@ fun ChatBox(
                     else -> {}
                 }
             }
-            Box(
-                contentAlignment = Alignment.Center, modifier = Modifier.clickable(onClick = {
-                    onClickSend.invoke(textFieldValue)
-                    textFieldValue = String.empty()
-                })
-            ) {
-                Icon(
-                    imageVector = ImageVector.vectorResource(sendIconState),
-                    contentDescription = null,
-                    modifier = Modifier.padding(dimensionResource(id = R.dimen.spacing_20))
-                )
-            }
         }
     }
 }
@@ -553,24 +535,25 @@ fun ChatBox(
 @Composable
 fun SourceImage(icon: Int, isDenied: Boolean, onClickIcon: () -> Unit) {
     var iconState by remember {
-        mutableStateOf(Color.Transparent)
+        mutableStateOf(Color(0xFF2BA6FF))
     }
     if (isDenied) {
-        iconState = Color(0xffEBEEF1)
+        iconState = Color(0xffD3D3D3)
     }
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
+            .clip(shape = CircleShape)
+            .background(color = iconState)
             .clickable(onClick = {
                 onClickIcon.invoke()
             })
     ) {
-        Icon(
+        Image(
             imageVector = ImageVector.vectorResource(icon),
             contentDescription = null,
             modifier = Modifier
-                .background(color = iconState)
-                .padding(dimensionResource(id = R.dimen.spacing_20)),
+                .padding(dimensionResource(id = R.dimen.spacing_30)),
         )
     }
 
@@ -859,7 +842,8 @@ fun GalleryPreviewUI(
                     imageVector = ImageVector.vectorResource(id = R.drawable.ic_gallery),
                     contentDescription = null, modifier = Modifier.padding(
                         dimensionResource(id = R.dimen.spacing_30)
-                    )
+                    ),
+                    colorFilter = ColorFilter.tint(Color.Black)
                 )
             }
         }

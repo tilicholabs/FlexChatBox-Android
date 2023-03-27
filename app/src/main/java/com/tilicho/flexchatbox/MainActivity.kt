@@ -36,7 +36,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Card
 import androidx.compose.material.Divider
@@ -44,6 +44,8 @@ import androidx.compose.material.Icon
 import androidx.compose.material.Scaffold
 import androidx.compose.material.Text
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -51,13 +53,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.unit.Dp
@@ -66,7 +68,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.core.text.util.LinkifyCompat
-import coil.compose.rememberImagePainter
+import coil.compose.rememberAsyncImagePainter
 import com.google.android.exoplayer2.ExoPlayer
 import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.ui.StyledPlayerView
@@ -86,8 +88,6 @@ import com.tilicho.flexchatbox.utils.getCurrentPositionInMmSs
 import com.tilicho.flexchatbox.utils.getDurationInMmSs
 import com.tilicho.flexchatbox.utils.getThumbnail
 import java.io.File
-import java.io.FileOutputStream
-import java.io.IOException
 
 class MainActivity : ComponentActivity() {
     @RequiresApi(Build.VERSION_CODES.Q)
@@ -104,17 +104,54 @@ class MainActivity : ComponentActivity() {
                 mutableStateOf<MutableList<ChatDataModel>?>(mutableListOf())
             }
 
+            var showFlexItems by remember {
+                mutableStateOf(false)
+            }
+
             var selectedFlex by remember {
                 mutableStateOf(Sources.CAMERA)
             }
 
             FlexChatBoxTheme {
                 Scaffold(topBar = {
-                    DisplayFlexItems(selectedFlex = {
-                        selectedFlex = it
-                    }, setFlexItemDialog = {
-                        true
-                    })
+                    Column(
+                        modifier = Modifier
+                            .padding(top = 10.dp)
+                            .padding(horizontal = 10.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(imageVector = Icons.Default.ArrowBack, contentDescription = null)
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Image(
+                                painterResource(id = R.drawable.app_chat_profile),
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(
+                                        CircleShape
+                                    )
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(text = "Tony Stark", fontSize = 16.sp)
+                            Spacer(modifier = Modifier.weight(1f))
+                            Image(
+                                imageVector = Icons.Filled.Add,
+                                contentDescription = null,
+                                modifier = Modifier.clickable(onClick = {
+                                    showFlexItems = true
+                                })
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Divider(color = Color.Black, thickness = Dp.Hairline)
+                        if (showFlexItems) {
+                            DisplayFlexItems(selectedFlex = {
+                                selectedFlex = it
+                            }, setFlexItemDialog = {
+                                showFlexItems = it
+                            })
+                        }
+                    }
                 }, bottomBar = {
                     Column(
                         modifier = Modifier
@@ -148,7 +185,6 @@ class MainActivity : ComponentActivity() {
                                             )
                                         }
                                         chatData = currData
-
                                     }
                                 }
                             },
@@ -245,7 +281,7 @@ fun ChatUI(context: Context, chatData: List<ChatDataModel>) {
             } else if (chatItem.file?.sourceType == Sources.FILES) {
                 val fileItemsUriList = chatItem.file.files
                 fileItemsUriList?.let {
-                    items(fileItemsUriList.size){index ->
+                    items(fileItemsUriList.size) { index ->
                         val fileItem = fileItemsUriList[index]
                         SetFileItemCell(context = context, fileItem = fileItem)
                         Spacer(modifier = Modifier.height(10.dp))
@@ -373,7 +409,7 @@ fun SetGalleryItemCell(context: Context, galleryItem: Uri) {
                 border = BorderStroke(1.dp, color = Color.Black)
             ) {
                 Image(
-                    painter = rememberImagePainter(data = videoThumbnail),
+                    painter = rememberAsyncImagePainter(model = videoThumbnail),
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
@@ -385,7 +421,7 @@ fun SetGalleryItemCell(context: Context, galleryItem: Uri) {
                 )
             }
             Image(
-                painter = rememberImagePainter(data = R.drawable.ic_play),
+                painter = rememberAsyncImagePainter(model = R.drawable.ic_play),
                 contentDescription = null,
                 modifier = Modifier
                     .size(50.dp)
@@ -398,7 +434,7 @@ fun SetGalleryItemCell(context: Context, galleryItem: Uri) {
             border = BorderStroke(1.dp, color = Color.Black)
         ) {
             Image(
-                painter = rememberImagePainter(data = galleryItem),
+                painter = rememberAsyncImagePainter(model = galleryItem),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
@@ -548,7 +584,7 @@ fun SetFileItemCell(context: Context, fileItem: Uri) {
                 val fileName = file.name + "." + type
                 Text(text = fileName)
                 Spacer(modifier = Modifier.height(2.dp))
-                Text(text = (fileSize/1024).toString() + " mb")
+                Text(text = (fileSize / 1024).toString() + " mb")
             }
         }
     }
@@ -563,7 +599,7 @@ fun SetCameraPictureItemCell(cameraImage: Uri?) {
             border = BorderStroke(1.dp, color = Color.Black)
         ) {
             Image(
-                painter = rememberImagePainter(data = cameraImage),
+                painter = rememberAsyncImagePainter(model = cameraImage),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
@@ -604,13 +640,12 @@ fun SetCameraVideoItemCell(context: Context, video: Uri?) {
             border = BorderStroke(1.dp, color = Color.Black)
         ) {
             Image(
-                painter = rememberImagePainter(
-                    data = video?.let {
-                        getThumbnail(
-                            context,
-                            it
-                        )
-                    }
+                painter = rememberAsyncImagePainter(model = video?.let {
+                    getThumbnail(
+                        context,
+                        it
+                    )
+                }
                 ),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
@@ -623,7 +658,7 @@ fun SetCameraVideoItemCell(context: Context, video: Uri?) {
             )
         }
         Image(
-            painter = rememberImagePainter(data = R.drawable.ic_play_grey),
+            painter = rememberAsyncImagePainter(model = R.drawable.ic_play_grey),
             contentDescription = null,
             modifier = Modifier
                 .size(50.dp)
@@ -729,8 +764,8 @@ fun DisplayFlexItems(
     selectedFlex: (Sources) -> Unit,
     setFlexItemDialog: (Boolean) -> Unit,
 ) {
-    Row(
-        horizontalArrangement = Arrangement.SpaceEvenly,
+    Column(
+        verticalArrangement = Arrangement.SpaceEvenly,
         modifier = Modifier
             .padding(top = 10.dp, start = 10.dp)
             .background(color = Color.White, shape = RoundedCornerShape(10.dp))
@@ -743,7 +778,7 @@ fun DisplayFlexItems(
                     selectedFlex.invoke(Sources.CAMERA)
                     setFlexItemDialog.invoke(false)
                 }
-                ))
+                ), colorFilter = ColorFilter.tint(Color.Black))
         Image(
             imageVector = ImageVector.vectorResource(R.drawable.ic_mic),
             contentDescription = null,
@@ -753,7 +788,7 @@ fun DisplayFlexItems(
                     selectedFlex.invoke(Sources.VOICE)
                     setFlexItemDialog.invoke(false)
                 }
-                )
+                ), colorFilter = ColorFilter.tint(Color.Black)
         )
 
         Image(imageVector = ImageVector.vectorResource(R.drawable.ic_location),
@@ -764,7 +799,7 @@ fun DisplayFlexItems(
                     selectedFlex.invoke(Sources.LOCATION)
                     setFlexItemDialog.invoke(false)
                 }
-                ))
+                ), colorFilter = ColorFilter.tint(Color.Black))
         Image(
             imageVector = ImageVector.vectorResource(R.drawable.ic_gallery),
             contentDescription = null,
@@ -773,7 +808,7 @@ fun DisplayFlexItems(
                 .clickable(onClick = {
                     selectedFlex.invoke(Sources.GALLERY)
                     setFlexItemDialog.invoke(false)
-                })
+                }), colorFilter = ColorFilter.tint(Color.Black)
         )
         Image(
             imageVector = (Icons.Filled.Person),
@@ -793,7 +828,7 @@ fun DisplayFlexItems(
                 .clickable(onClick = {
                     selectedFlex.invoke(Sources.FILES)
                     setFlexItemDialog.invoke(false)
-                })
+                }), colorFilter = ColorFilter.tint(Color.Black)
         )
     }
 
