@@ -163,8 +163,8 @@ fun getContacts(applicationContext: Context): List<ContactData> {
         .sortedBy { it.name }
         .filter { it ->
             it.mobileNumber?.replaceFirst("+", "").let { number ->
-                number?.matches(primaryMobileNumberRegex)!! ||
-                        number.matches(secondaryMobileNumberRegex)
+                number?.matches(primaryMobileNumberRegex) == true ||
+                        number?.matches(secondaryMobileNumberRegex) == true
             }
         }
 }

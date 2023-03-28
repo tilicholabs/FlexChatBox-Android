@@ -7,6 +7,9 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -143,6 +146,10 @@ fun ChatBox(
         mutableStateOf<File?>(null)
     }
 
+    var isPressed by remember {
+        mutableStateOf(false)
+    }
+
     val isRecording by remember {
         mutableStateOf(false)
     }
@@ -194,12 +201,12 @@ fun ChatBox(
             if (showDialog) {
                 GalleryPreviewDialog(
                     context,
-                    galleryList = galleryList!!,
+                    galleryList = galleryList ?: listOf(),
                     galleryLauncher = galleryLauncher,
                     onDismissCallback = { dismissDialog, setImages ->
                         showDialog = dismissDialog
                         if (setImages) {
-                            selectedPhotosOrVideos(galleryList!!)
+                            selectedPhotosOrVideos(galleryList ?: listOf())
                         }
                     })
             }
@@ -227,10 +234,10 @@ fun ChatBox(
             val filesUriList: MutableList<Uri> = mutableListOf()
             if (activityResult.resultCode == Activity.RESULT_OK) {
                 if (activityResult.data?.clipData != null) {
-                    val count = activityResult.data?.clipData?.itemCount
+                    val count = activityResult.data?.clipData?.itemCount ?: 0
                     var currentItem = 0
-                    while (currentItem < count!!) {
-                        activityResult.data!!.clipData?.getItemAt(currentItem)?.uri
+                    while (currentItem < count) {
+                        activityResult.data?.clipData?.getItemAt(currentItem)?.uri
                             ?.let { (filesUriList.add(it)) }
                         currentItem += 1
                     }
@@ -257,9 +264,9 @@ fun ChatBox(
                 showSettingsDialog = true
             }
             if (isGranted) {
-                galleryLauncher.launch(GALLERY_INPUT_TYPE)
                 isPermissionPermanentlyDenied = false
                 showDialog = false
+                galleryLauncher.launch(GALLERY_INPUT_TYPE)
             }
         }
 
@@ -274,9 +281,9 @@ fun ChatBox(
                 showSettingsDialog = true
             }
             if (isGranted) {
-                cameraIntent(cameraLauncher)
                 isPermissionPermanentlyDenied = false
                 showDialog = false
+                cameraIntent(cameraLauncher)
             }
         }
 
@@ -291,6 +298,8 @@ fun ChatBox(
                 showSettingsDialog = true
             }
             if (isGranted) {
+                isPermissionPermanentlyDenied = false
+                showDialog = false
                 if (!isLocationEnabled(context)) {
                     Toast.makeText(context,  R.string.enable_location, Toast.LENGTH_LONG).show()
                 } else {
@@ -302,8 +311,6 @@ fun ChatBox(
                         LOCATION_URL + latLong
                     )
                     currentLocation(location)
-                    isPermissionPermanentlyDenied = false
-                    showDialog = false
                 }
             }
         }
@@ -320,10 +327,10 @@ fun ChatBox(
             }
             if (isGranted) {
                 val data = getContacts(context)
-                contacts = data
-                displayContacts = true
                 isPermissionPermanentlyDenied = false
                 showDialog = false
+                contacts = data
+                displayContacts = true
             }
         }
 
@@ -338,9 +345,9 @@ fun ChatBox(
                 showSettingsDialog = true
             }
             if (isGranted) {
-                openFiles(context, fileLauncher)
                 isPermissionPermanentlyDenied = false
                 showDialog = false
+                openFiles(context, fileLauncher)
             }
         }
 
@@ -437,10 +444,12 @@ fun ChatBox(
 
                     Sources.VOICE -> {
                         var iconState by remember {
-                            mutableStateOf(Color.Transparent)
+                            mutableStateOf(R.color.c_2ba6ff)
                         }
-                        if (isPermissionPermanentlyDenied) {
-                            iconState = colorResource(id = R.color.c_ebeef1)
+                        iconState = if (isPermissionPermanentlyDenied) {
+                            R.color.c_ebeef1
+                        } else {
+                            R.color.c_2ba6ff
                         }
                         Box(
                             contentAlignment = Alignment.Center,
@@ -455,32 +464,27 @@ fun ChatBox(
                                     .padding(dimensionResource(id = R.dimen.spacing_30))
                                     .pointerInput(Unit) {
                                         detectTapGestures(
-                                            onTap = {
-                                                Toast
-                                                    .makeText(context, "onTap", Toast.LENGTH_SHORT)
-                                                    .show()
-                                            },
                                             onPress = {
-                                                Toast
-                                                    .makeText(
-                                                        context,
-                                                        "onPress",
-                                                        Toast.LENGTH_SHORT
-                                                    )
-                                                    .show()
+                                                isPressed = true
                                                 if (checkPermission(
                                                         context,
                                                         Manifest.permission.RECORD_AUDIO
                                                     )
                                                 ) {
                                                     try {
-                                                        File(context.cacheDir, "audio.mp3").also {
-                                                            recorder.start(it)
-                                                            audioFile = it
+                                                        File(context.cacheDir, "audio${System.currentTimeMillis()}.mp3").also {
+                                                            Handler(Looper.getMainLooper()).postDelayed(
+                                                                {
+                                                                    if (isPressed) {
+                                                                        recorder.start(it)
+                                                                        audioFile = it
+                                                                    }
+                                                                }, 200)
                                                         }
                                                         awaitRelease()
                                                     } finally {
                                                         try {
+                                                            isPressed = false
                                                             recorder.stop()
                                                             audioFile?.let {
                                                                 recordedAudio.invoke(it)
@@ -534,8 +538,10 @@ fun SourceImage(icon: Int, isDenied: Boolean, onClickIcon: () -> Unit) {
         mutableStateOf(R.color.c_2ba6ff)
     }
 
-    if (isDenied) {
-        iconState = R.color.c_ebeef1
+    iconState = if (isDenied) {
+        R.color.c_ebeef1
+    } else {
+        R.color.c_2ba6ff
     }
     Box(
         contentAlignment = Alignment.Center,
@@ -747,7 +753,7 @@ fun GalleryPreviewUI(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            if (previewUriList?.size!! > 1) {
+            if ((previewUriList?.size ?: 0) > 1) {
                 Image(ImageVector.vectorResource(R.drawable.ic_delete),
                     contentDescription = null,
                     modifier = Modifier
@@ -968,6 +974,8 @@ fun ShowNavigateToAppSettingsDialog(context: Context, onDismissCallback: (Boolea
                         modifier = Modifier.clickable {
                             onDismissCallback(false)
                             context.navigateToAppSettings()
+                            val x = 10
+                            Log.d("tag_0394", x.toString())
                         })
                 }
             }

@@ -19,7 +19,6 @@ import androidx.annotation.RequiresApi
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -51,7 +50,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.sourceInformationMarkerEnd
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -613,7 +611,7 @@ class MainActivity : ComponentActivity() {
                             .toString()
                         val fileDescriptor: AssetFileDescriptor? =
                             it.contentResolver.openAssetFileDescriptor(fileItem, "r")
-                        fileSize = fileDescriptor?.length!!
+                        fileSize = fileDescriptor?.length ?: 0L
                     }
                     val fileName = file.name + "." + type
                     Text(text = fileName, fontFamily = FontFamily(Font(R.font.opensans_regular)))
