@@ -15,7 +15,6 @@ import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -41,6 +40,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.Button
+import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.Card
 import androidx.compose.material.Divider
 import androidx.compose.material.Icon
@@ -77,6 +77,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -152,10 +153,6 @@ fun ChatBox(
 
     val isRecording by remember {
         mutableStateOf(false)
-    }
-
-    var sendIconState by remember {
-        mutableStateOf(R.drawable.ic_send)
     }
 
     var contacts: List<ContactData> by remember { mutableStateOf(listOf()) }
@@ -301,7 +298,7 @@ fun ChatBox(
                 isPermissionPermanentlyDenied = false
                 showDialog = false
                 if (!isLocationEnabled(context)) {
-                    Toast.makeText(context,  R.string.enable_location, Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, R.string.enable_location, Toast.LENGTH_LONG).show()
                 } else {
                     val currLocation = getLocation(context)
                     val latLong =
@@ -373,48 +370,60 @@ fun ChatBox(
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         if (isRecording) {
-            sendIconState = R.drawable.ic_recorder
             AudioRecordingUi()
         } else {
-            sendIconState = R.drawable.ic_send
-            TextField(
-                value = textFieldValue,
-                onValueChange = {
-                    textFieldValue = it
-                },
-                placeholder = {
-                    Text(
-                        text = stringResource(id = R.string.hint),
-                        color = colorResource(id = R.color.c_placeholder),
-                        fontSize = 18.sp
-                    )
-                },
-                colors = TextFieldDefaults.textFieldColors(
-                    backgroundColor = colorResource(id = R.color.c_f6f6f6),
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent,
-                ),
-                modifier = Modifier
-                    .weight(4f),
-                singleLine = false,
-                maxLines = 4,
-                shape = RoundedCornerShape(dimensionResource(id = R.dimen.spacing_60)),
-                trailingIcon = {
-                    IconButton(
-                        onClick = {
-                            onClickSend.invoke(textFieldValue)
-                            textFieldValue = String.empty()
-                        }
-                    ) {
-                        Icon(
-                            modifier = Modifier.align(Alignment.Bottom),
-                            imageVector = ImageVector.vectorResource(id = R.drawable.ic_send),
-                            contentDescription = null
+            var sendIconState by remember {
+                mutableStateOf(Color(0xFF808080))
+            }
+            sendIconState = if (textFieldValue.isNotEmpty()) {
+                colorResource(R.color.c_2ba6ff)
+            } else {
+                Color(0xFF808080)
+            }
+            Row(
+                verticalAlignment = Alignment.Bottom, modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(4f)
+                    .clip(shape = RoundedCornerShape(dimensionResource(id = R.dimen.spacing_60)))
+                    .background(color = colorResource(id = R.color.c_edf0ee))
+            ) {
+                TextField(
+                    value = textFieldValue,
+                    onValueChange = {
+                        textFieldValue = it
+                    },
+                    placeholder = {
+                        Text(
+                            text = stringResource(id = R.string.hint),
+                            color = colorResource(id = R.color.c_placeholder),
+                            fontSize = 18.sp
                         )
+                    },
+                    colors = TextFieldDefaults.textFieldColors(
+                        backgroundColor = Color.Transparent,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent,
+                    ),
+                    singleLine = false,
+                    maxLines = 4,
+                    modifier = Modifier.weight(6f),
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences)
+                )
+                IconButton(modifier = Modifier.weight(1.5f),
+                    onClick = {
+                        onClickSend.invoke(textFieldValue)
+                        textFieldValue = String.empty()
                     }
-                },
-                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences)
-            )
+                ) {
+                    Icon(
+                        imageVector = ImageVector.vectorResource(id = R.drawable.ic_send),
+                        contentDescription = null,
+                        tint = sendIconState
+                    )
+                }
+
+
+            }
         }
 
         Row(
@@ -472,14 +481,18 @@ fun ChatBox(
                                                     )
                                                 ) {
                                                     try {
-                                                        File(context.cacheDir, "audio${System.currentTimeMillis()}.mp3").also {
+                                                        File(
+                                                            context.cacheDir,
+                                                            "audio${System.currentTimeMillis()}.mp3"
+                                                        ).also {
                                                             Handler(Looper.getMainLooper()).postDelayed(
                                                                 {
                                                                     if (isPressed) {
                                                                         recorder.start(it)
                                                                         audioFile = it
                                                                     }
-                                                                }, 200)
+                                                                }, 200
+                                                            )
                                                         }
                                                         awaitRelease()
                                                     } finally {
@@ -519,8 +532,10 @@ fun ChatBox(
                             })
                     }
                     Sources.CAMERA -> {
-                        SourceImage(icon = R.drawable.ic_camera,
-                            isDenied = isPermissionPermanentlyDenied) {
+                        SourceImage(
+                            icon = R.drawable.ic_camera,
+                            isDenied = isPermissionPermanentlyDenied
+                        ) {
                             cameraPermissionState.launchPermissionRequest()
                         }
                     }
@@ -593,16 +608,23 @@ fun DisplayContacts(
                         .padding(start = dimensionResource(id = R.dimen.spacing_10dp)),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(text = stringResource(id = R.string.contacts),
+                    Text(
+                        color = colorResource(id = R.color.c_2ba6ff),
+                        text = stringResource(id = R.string.contacts),
                         textAlign = TextAlign.Center,
                         fontSize = 20.sp,
-                        fontFamily = FontFamily(Font(R.font.opensans_regular)))
+                        fontFamily = FontFamily(Font(R.font.opensans_regular))
+                    )
                     Spacer(modifier = Modifier.weight(1f))
-                    Button(onClick = {
-                        selectedContactsCallBack.invoke(selectedContacts)
-                    }) {
-                        Text(text = stringResource(id = R.string.send),
-                            fontFamily = FontFamily(Font(R.font.opensans_regular)))
+                    Button(
+                        colors = ButtonDefaults.buttonColors(backgroundColor = colorResource(R.color.c_2ba6ff)),
+                        onClick = {
+                            selectedContactsCallBack.invoke(selectedContacts)
+                        }) {
+                        Text(
+                            text = stringResource(id = R.string.send),
+                            fontFamily = FontFamily(Font(R.font.opensans_regular))
+                        )
                     }
                 }
 
@@ -638,22 +660,33 @@ fun DisplayContacts(
                         ) {
                             Column {
                                 contact.name?.let {
-                                    Text(text = it,
-                                        fontFamily = FontFamily(Font(R.font.opensans_regular)))
+                                    Text(
+                                        text = it,
+                                        fontFamily = FontFamily(Font(R.font.opensans_regular))
+                                    )
                                 }
                                 contact.mobileNumber?.let {
-                                    Text(text = it,
-                                        fontFamily = FontFamily(Font(R.font.opensans_regular)))
+                                    Text(
+                                        text = it,
+                                        fontFamily = FontFamily(Font(R.font.opensans_regular))
+                                    )
                                 }
                             }
                             Spacer(modifier = Modifier.weight(1f))
                             Icon(
                                 imageVector = icon,
                                 contentDescription = null,
+                                tint = colorResource(
+                                    id = R.color.c_2ba6ff
+                                )
                             )
                         }
                         Divider()
                     }
+                }
+
+                Button(onClick = { /*TODO*/ }) {
+                    Text(text = "Click me!")
                 }
             }
         }
@@ -690,25 +723,33 @@ fun AudioRecordingUi() {
         )
         Spacer(modifier = Modifier.width(dimensionResource(id = R.dimen.spacing_10dp)))
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(text = stringResource(id = R.string.recording_audio),
+            Text(
+                text = stringResource(id = R.string.recording_audio),
                 color = Color.Red,
-                fontFamily = FontFamily(Font(R.font.opensans_regular)))
-            Text(text = stringResource(id = R.string.swipe_to_cancel),
+                fontFamily = FontFamily(Font(R.font.opensans_regular))
+            )
+            Text(
+                text = stringResource(id = R.string.swipe_to_cancel),
                 fontSize = 12.sp,
                 color = Color.Red,
-                fontFamily = FontFamily(Font(R.font.opensans_regular)))
+                fontFamily = FontFamily(Font(R.font.opensans_regular))
+            )
         }
 
         Spacer(modifier = Modifier.width(dimensionResource(id = R.dimen.spacing_10dp)))
 
         if (seconds < 10) {
-            Text(text = "0$minutes:0$seconds",
+            Text(
+                text = "0$minutes:0$seconds",
                 color = Color.Red,
-                fontFamily = FontFamily(Font(R.font.opensans_regular)))
+                fontFamily = FontFamily(Font(R.font.opensans_regular))
+            )
         } else {
-            Text(text = "0$minutes:$seconds",
+            Text(
+                text = "0$minutes:$seconds",
                 color = Color.Red,
-                fontFamily = FontFamily(Font(R.font.opensans_regular)))
+                fontFamily = FontFamily(Font(R.font.opensans_regular))
+            )
         }
     }
 }
@@ -949,33 +990,52 @@ fun ShowNavigateToAppSettingsDialog(context: Context, onDismissCallback: (Boolea
             onDismissCallback(false)
         }
     ) {
-        Card(shape = RoundedCornerShape(dimensionResource(id = R.dimen.spacing_40)),
-            border = BorderStroke(
-                dimensionResource(id = R.dimen.spacing_00), color = colorResource(
-                    id = R.color.c_c0e5ff))) {
-            Column(modifier = Modifier.padding(dimensionResource(id = R.dimen.spacing_30))) {
-                Text(text = stringResource(id = R.string.permission_denied),
-                    fontFamily = FontFamily(Font(R.font.opensans_regular)))
-                Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_20)))
-                Row(modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End) {
-                    Text(text = stringResource(id = R.string.cancel),
-                        color = Color.Blue,
-                        fontFamily = FontFamily(Font(R.font.opensans_regular)),
-                        modifier = Modifier.clickable {
-                            onDismissCallback(false)
-                        })
+        Card(shape = RoundedCornerShape(dimensionResource(id = R.dimen.spacing_10dp))) {
+            Column(
+                modifier = Modifier.padding(dimensionResource(id = R.dimen.spacing_60)),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Icon(
+                    imageVector = ImageVector.vectorResource(id = R.drawable.ic_settings),
+                    contentDescription = null,
+                    tint = Color.Blue
+                )
 
-                    Spacer(modifier = Modifier.width(dimensionResource(id = R.dimen.spacing_40)))
+                Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_30)))
 
-                    Text(text = stringResource(id = R.string.settings),
-                        fontFamily = FontFamily(Font(R.font.opensans_regular)),
+                Text(
+                    textAlign = TextAlign.Center,
+                    fontWeight = FontWeight.Bold,
+                    text = stringResource(id = R.string.permission_denied)
+                )
+
+                Divider(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = dimensionResource(id = R.dimen.spacing_40))
+                )
+
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.SpaceEvenly,
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(fontWeight = FontWeight.Bold,
+                        text = stringResource(id = R.string.settings),
                         color = Color.Blue,
                         modifier = Modifier.clickable {
                             onDismissCallback(false)
                             context.navigateToAppSettings()
                             val x = 10
                             Log.d("tag_0394", x.toString())
+                        })
+
+                    Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_40)))
+
+                    Text(fontWeight = FontWeight.Bold, text = stringResource(id = R.string.cancel),
+                        color = Color.Blue,
+                        modifier = Modifier.clickable {
+                            onDismissCallback(false)
                         })
                 }
             }

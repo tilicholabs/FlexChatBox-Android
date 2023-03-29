@@ -1,5 +1,6 @@
 package com.tilicho.flexchatbox
 
+import android.annotation.SuppressLint
 import android.content.ContentResolver
 import android.content.Context
 import android.content.res.AssetFileDescriptor
@@ -11,6 +12,7 @@ import android.os.Handler
 import android.text.method.LinkMovementMethod
 import android.text.util.Linkify
 import android.util.Patterns
+import android.view.WindowManager
 import android.webkit.MimeTypeMap
 import android.widget.TextView
 import androidx.activity.ComponentActivity
@@ -89,9 +91,11 @@ import java.io.File
 import java.util.*
 
 class MainActivity : ComponentActivity() {
+    @SuppressLint("MutableCollectionMutableState")
     @RequiresApi(Build.VERSION_CODES.Q)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         setContent {
             val context = this@MainActivity
 
@@ -141,8 +145,15 @@ class MainActivity : ComponentActivity() {
                                 })
                             )
                         }
-                        Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_10dp)))
-                        Divider(color = Color.Black, thickness = Dp.Hairline)
+                        Divider(
+                            color = Color.Black,
+                            thickness = Dp.Hairline,
+                            modifier = Modifier.padding(
+                                vertical =
+                                dimensionResource(id = R.dimen.spacing_20)
+                            )
+                        )
+
                         if (showFlexItems) {
                             DisplayFlexItems(selectedFlex = {
                                 selectedFlex = it
@@ -163,7 +174,7 @@ class MainActivity : ComponentActivity() {
                             selectedPhotosOrVideos = {
                                 val currData =
                                     mutableListOf(ChatDataModel(galleryItems = GalleryItems(uris = it.toMutableList())))
-                                chatData?.let { it1 -> currData.addAll(currData.size - 1, it1) }
+                                chatData?.let { it1 -> currData.addAll(0, it1) }
                                 chatData = currData
                             },
                             recordedAudio = {
@@ -202,13 +213,13 @@ class MainActivity : ComponentActivity() {
                             selectedContactsCallBack = {
                                 val currData =
                                     mutableListOf(ChatDataModel(contacts = Contacts(contacts = it.toMutableList())))
-                                chatData?.let { it1 -> currData.addAll(currData.size - 1, it1) }
+                                chatData?.let { it1 -> currData.addAll(0, it1) }
                                 chatData = currData
                             },
                             selectedFiles = {
                                 val currData =
                                     mutableListOf(ChatDataModel(file = FileItems(files = it.toMutableList())))
-                                chatData?.let { it1 -> currData.addAll(currData.size - 1, it1) }
+                                chatData?.let { it1 -> currData.addAll(0, it1) }
                                 chatData = currData
                             },
                             camera = { _source, uri ->
@@ -228,427 +239,172 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                 }) {
-                    Column(modifier = Modifier.padding(it)) {
+                    Column(
+                        verticalArrangement = Arrangement.Bottom,
+                        horizontalAlignment = Alignment.End,
+                        modifier = Modifier
+                            .padding(
+                                horizontal = dimensionResource(
+                                    id = R.dimen.spacing_20
+                                )
+                            )
+                            .fillMaxSize()
+                            .padding(it)
+                    ) {
                         chatData?.let { it1 -> ChatUI(context = context, chatData = it1) }
                     }
                 }
             }
         }
     }
+}
 
-    @Composable
-    fun ChatUI(context: Context, chatData: List<ChatDataModel>) {
-        LazyColumn(
-            horizontalAlignment = Alignment.End,
-            verticalArrangement = Arrangement.Bottom,
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(dimensionResource(id = R.dimen.spacing_50))
-        ) {
-            for (chatItem in chatData) {
-                if (chatItem.contacts?.sourceType == Sources.CONTACTS) {
-                    item {
-                        val contacts = chatItem.contacts.contacts
-                        SetContactItemCell(contacts)
+@Composable
+fun ChatUI(context: Context, chatData: List<ChatDataModel>) {
+    LazyColumn(
+        horizontalAlignment = Alignment.End,
+        verticalArrangement = Arrangement.Bottom,
+        modifier = Modifier
+    ) {
+        for (chatItem in chatData) {
+            if (chatItem.contacts?.sourceType == Sources.CONTACTS) {
+                item {
+                    val contacts = chatItem.contacts.contacts
+                    SetContactItemCell(contacts)
+                    Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_10dp)))
+                }
+            } else if (chatItem.galleryItems?.sourceType == Sources.GALLERY) {
+                val galleryItemsUriList = chatItem.galleryItems.uris
+                if (galleryItemsUriList != null) {
+                    items(galleryItemsUriList.size) {
+                        val galleryItem = galleryItemsUriList[it]
+                        SetGalleryItemCell(context = context, galleryItem = galleryItem)
                         Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_10dp)))
                     }
-                } else if (chatItem.galleryItems?.sourceType == Sources.GALLERY) {
-                    val galleryItemsUriList = chatItem.galleryItems.uris
-                    if (galleryItemsUriList != null) {
-                        items(galleryItemsUriList.size) {
-                            val galleryItem = galleryItemsUriList[it]
-                            SetGalleryItemCell(context = context, galleryItem = galleryItem)
-                            Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_10dp)))
-                        }
-                    }
-                } else if (chatItem.location?.sourceType == Sources.LOCATION) {
-                    item {
-                        val location = chatItem.location.location
-                        SetLocationItemCell(context = context, location = location)
+                }
+            } else if (chatItem.location?.sourceType == Sources.LOCATION) {
+                item {
+                    val location = chatItem.location.location
+                    SetLocationItemCell(context = context, location = location)
+                    Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_10dp)))
+                }
+            } else if (chatItem.voice?.sourceType == Sources.VOICE) {
+                item {
+                    val audioFile = chatItem.voice.file
+                    SetVoiceItemCell(context = context, audioFile = audioFile)
+                    Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_10dp)))
+                }
+            } else if (chatItem.file?.sourceType == Sources.FILES) {
+                val fileItemsUriList = chatItem.file.files
+                fileItemsUriList?.let {
+                    items(fileItemsUriList.size) { index ->
+                        val fileItem = fileItemsUriList[index]
+                        SetFileItemCell(context = context, fileItem = fileItem)
                         Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_10dp)))
                     }
-                } else if (chatItem.voice?.sourceType == Sources.VOICE) {
-                    item {
-                        val audioFile = chatItem.voice.file
-                        SetVoiceItemCell(context = context, audioFile = audioFile)
-                        Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_10dp)))
-                    }
-                } else if (chatItem.file?.sourceType == Sources.FILES) {
-                    val fileItemsUriList = chatItem.file.files
-                    fileItemsUriList?.let {
-                        items(fileItemsUriList.size) { index ->
-                            val fileItem = fileItemsUriList[index]
-                            SetFileItemCell(context = context, fileItem = fileItem)
-                            Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_10dp)))
-                        }
-                    }
-                } else if (chatItem.camera?.sourceType == Sources.CAMERA) {
-                    val cameraImage = chatItem.camera.uri
-                    item {
-                        SetCameraPictureItemCell(cameraImage)
-                        Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_10dp)))
-                    }
-                } else if (chatItem.video?.sourceType == Sources.VIDEO) {
-                    val video = chatItem.video.uri
-                    item {
-                        SetCameraVideoItemCell(context = context, video = video)
-                        Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_10dp)))
-                    }
-                } else {
-                    val text = chatItem.textFieldValue
-                    item {
-                        Box(
-                            contentAlignment = Alignment.BottomStart,
-                            modifier = Modifier
-                                .background(color = ItemsBackground,
-                                    shape = RoundedCornerShape(dimensionResource(id = R.dimen.spacing_50),
-                                        dimensionResource(id = R.dimen.spacing_50),
-                                        0.dp,
-                                        dimensionResource(id = R.dimen.spacing_50)))
-                                .wrapContentWidth()
-                                .wrapContentHeight()
-                        )
-                        {
-                            text?.let {
-                                Text(
-                                    text = it,
-                                    fontSize = 16.sp,
-                                    modifier = Modifier
-                                        .padding(dimensionResource(id = R.dimen.spacing_10dp)),
-                                    fontFamily = FontFamily(Font(R.font.opensans_regular))
-                                )
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_10dp)))
+                }
+            } else if (chatItem.camera?.sourceType == Sources.CAMERA) {
+                val cameraImage = chatItem.camera.uri
+                item {
+                    SetCameraPictureItemCell(cameraImage)
+                    Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_10dp)))
+                }
+            } else if (chatItem.video?.sourceType == Sources.VIDEO) {
+                val video = chatItem.video.uri
+                item {
+                    SetCameraVideoItemCell(context = context, video = video)
+                    Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_10dp)))
+                }
+            } else {
+                val text = chatItem.textFieldValue
+                item {
+                    if (text != null) {
+                        SetChatTextCell(text = text)
                     }
                 }
             }
         }
     }
+}
 
-    @Composable
-    fun SetContactItemCell(contacts: List<ContactData>?) {
-        if (contacts?.isNotEmpty() == true && contacts.size <= 1) {
-            Card(
-                shape = RoundedCornerShape(dimensionResource(id = R.dimen.spacing_40), dimensionResource(id = R.dimen.spacing_40), 0.dp, dimensionResource(id = R.dimen.spacing_40)),
-                backgroundColor = ItemsBackground
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(
-                        horizontal = dimensionResource(id = R.dimen.spacing_40),
-                        vertical = dimensionResource(id = R.dimen.spacing_10dp))) {
-                    Icon(
-                        imageVector = ImageVector.vectorResource(id = R.drawable.ic_person),
-                        contentDescription = "",
-                    )
-                    Spacer(modifier = Modifier.width(dimensionResource(id = R.dimen.spacing_10dp)))
-                    Column {
-                        contacts[0].name?.let { it1 ->
-                            Text(text = it1,
-                                fontFamily = FontFamily(Font(R.font.opensans_regular)))
-                        }
-                        contacts[0].mobileNumber?.let { it1 ->
-                            Text(text = it1,
-                                fontFamily = FontFamily(Font(R.font.opensans_regular)))
-                        }
-                    }
-                }
-            }
-        } else if (contacts?.isNotEmpty() == true) {
-            Card(
-                shape = RoundedCornerShape(dimensionResource(id = R.dimen.spacing_40), dimensionResource(id = R.dimen.spacing_40), 0.dp, dimensionResource(id = R.dimen.spacing_40)),
-                backgroundColor = ItemsBackground
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(
-                        horizontal = dimensionResource(id = R.dimen.spacing_40),
-                        vertical = dimensionResource(id = R.dimen.spacing_10)
-                    )
-                ) {
-                    Icon(
-                        imageVector = ImageVector.vectorResource(id = R.drawable.ic_group),
-                        contentDescription = "",
-                    )
-                    Spacer(modifier = Modifier.width(dimensionResource(id = R.dimen.spacing_10dp)))
-                    Text(text = "Contact 1 and ${contacts.size - 1} \n other contacts",
-                        fontFamily = FontFamily(Font(R.font.opensans_regular)))
-                }
-            }
-        }
-    }
-
-    @Composable
-    fun SetGalleryItemCell(context: Context, galleryItem: Uri) {
-        val mediaTypeRaw = galleryItem.let { context.contentResolver.getType(it) }
-        if (mediaTypeRaw?.startsWith("video") == true) {
-            var setPreviewDialog by remember {
-                mutableStateOf(false)
-            }
-            if (setPreviewDialog) {
-                Dialog(onDismissRequest = { setPreviewDialog = false }) {
-                    Column(
-                        modifier = Modifier
-                            .size(dimensionResource(id = R.dimen.dialog_size))
-                            .clickable(onClick = {
-                                setPreviewDialog = false
-                            })
-                    ) {
-                        VideoView(
-                            context = context,
-                            videoUri = galleryItem.toString()
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_10dp)))
-            }
-            val videoThumbnail = getThumbnail(context = context, galleryItem)
-            Box(contentAlignment = Alignment.Center) {
-                Card(
-                    shape = RoundedCornerShape(dimensionResource(id = R.dimen.spacing_40), dimensionResource(id = R.dimen.spacing_40), 0.dp, dimensionResource(id = R.dimen.spacing_40)),
-                    border = BorderStroke(width = 1.dp, color = ItemsBackground)
-                ) {
-                    Image(
-                        painter = rememberAsyncImagePainter(model = videoThumbnail),
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .size(dimensionResource(id = R.dimen.image_size))
-                            .padding(dimensionResource(id = R.dimen.spacing_10dp))
-                            .clickable(onClick = {
-                                setPreviewDialog = true
-                            })
-                    )
-                }
-                Image(
-                    painter = rememberAsyncImagePainter(model = R.drawable.ic_play_circle),
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(dimensionResource(id = R.dimen.spacing_90))
-                )
-            }
-
-        } else {
-            Card(
-                shape = RoundedCornerShape(dimensionResource(id = R.dimen.spacing_40), dimensionResource(id = R.dimen.spacing_40), 0.dp, dimensionResource(id = R.dimen.spacing_40)),
-                border = BorderStroke(width = 1.dp, color = ItemsBackground)
-            ) {
-                Image(
-                    painter = rememberAsyncImagePainter(model = galleryItem),
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .padding(dimensionResource(id = R.dimen.spacing_10dp))
-                        .size(dimensionResource(id = R.dimen.image_size))
-                        .clickable(onClick = {
-
-                        })
-                )
-            }
-        }
-    }
-
-    @Composable
-    fun SetLocationItemCell(context: Context, location: Location?) {
-        val customLinkifyTextView = remember {
-            TextView(context)
-        }
-        Column(
-            modifier = Modifier
-                .background(color = ItemsBackground,
-                    shape = RoundedCornerShape(dimensionResource(id = R.dimen.spacing_40),
-                        dimensionResource(id = R.dimen.spacing_40),
-                        0.dp,
-                        dimensionResource(id = R.dimen.spacing_40)))
-                .width(dimensionResource(id = R.dimen.dialog_size))
-                .padding(dimensionResource(id = R.dimen.spacing_10dp))
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth(),
-                horizontalArrangement = Arrangement.Start
-            ) {
-                Image(painterResource(id = R.drawable.image_map), contentDescription = null)
-                Spacer(modifier = Modifier.width(dimensionResource(id = R.dimen.spacing_50)))
-                Text(text = "${location?.location?.longitude},${location?.location?.latitude}",
-                    fontFamily = FontFamily(Font(R.font.opensans_regular)))
-            }
-            Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_10)))
-            Divider(modifier = Modifier.background(color = Color.Black))
-            AndroidView(modifier = Modifier,
-                factory = { customLinkifyTextView }) { textView ->
-                textView.text = location?.url
-                LinkifyCompat.addLinks(textView, Linkify.ALL)
-                Linkify.addLinks(
-                    textView,
-                    Patterns.PHONE,
-                    "tel:",
-                    Linkify.sPhoneNumberMatchFilter,
-                    Linkify.sPhoneNumberTransformFilter
-                )
-                textView.movementMethod = LinkMovementMethod.getInstance()
-            }
-
-        }
-    }
-
-    @Composable
-    fun SetVoiceItemCell(context: Context, audioFile: File?) {
-        var mediaPlayer: MediaPlayer? = null
-
-        if (audioFile != null) {
-            MediaPlayer.create(context, audioFile.toUri()).apply {
-                mediaPlayer = this
-            }
-        }
-
-        var durationScale by remember {
-            mutableStateOf(mediaPlayer?.getDurationInMmSs())
-        }
-        var isPlaying by remember {
-            mutableStateOf(false)
-        }
-        val handler = Handler()
-
+@Composable
+fun SetContactItemCell(contacts: List<ContactData>?) {
+    if (contacts?.isNotEmpty() == true && contacts.size <= 1) {
         Card(
-            backgroundColor = ItemsBackground,
-            shape = RoundedCornerShape(dimensionResource(id = R.dimen.spacing_40), dimensionResource(id = R.dimen.spacing_40), 0.dp, dimensionResource(id = R.dimen.spacing_40))
+            shape = RoundedCornerShape(
+                dimensionResource(id = R.dimen.spacing_40),
+                dimensionResource(id = R.dimen.spacing_40),
+                0.dp,
+                dimensionResource(id = R.dimen.spacing_40)
+            ),
+            backgroundColor = ItemsBackground
         ) {
             Row(
-                horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(horizontal = dimensionResource(id = R.dimen.spacing_10dp))
+                modifier = Modifier.padding(
+                    horizontal = dimensionResource(id = R.dimen.spacing_40),
+                    vertical = dimensionResource(id = R.dimen.spacing_10dp)
+                )
             ) {
                 Icon(
-                    imageVector = ImageVector.vectorResource(id = R.drawable.ic_recorder),
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(dimensionResource(id = R.dimen.spacing_90))
+                    imageVector = ImageVector.vectorResource(id = R.drawable.ic_person),
+                    contentDescription = "",
                 )
-
-                Spacer(modifier = Modifier.width(dimensionResource(id = R.dimen.spacing_20)))
-
-                mediaPlayer?.setOnCompletionListener {
-                    isPlaying = false
-                    durationScale = it?.getDurationInMmSs()
-                }
-
-                Text(text = "Audio $durationScale",
-                    fontFamily = FontFamily(Font(R.font.opensans_regular)))
-                Spacer(modifier = Modifier.width(dimensionResource(id = R.dimen.spacing_20)))
-                if (!isPlaying) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_play_circle),
-                        contentDescription = "",
-                        modifier = Modifier
-                            .size(dimensionResource(id = R.dimen.spacing_70))
-                            .clickable(onClick = {
-                                mediaPlayer?.start()
-                                object : Runnable {
-                                    override fun run() {
-                                        durationScale =
-                                            mediaPlayer?.getCurrentPositionInMmSs()
-                                        handler.postDelayed(this, 1000)
-                                    }
-                                }.run()
-                                isPlaying = true
-                            })
-                    )
-                } else {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_pause_circle),
-                        contentDescription = "",
-                        modifier = Modifier
-                            .size(dimensionResource(id = R.dimen.spacing_70))
-                            .clickable(onClick = {
-                                mediaPlayer?.pause()
-                                isPlaying = false
-                            })
-                    )
+                Spacer(modifier = Modifier.width(dimensionResource(id = R.dimen.spacing_10dp)))
+                Column {
+                    contacts[0].name?.let { it1 ->
+                        Text(
+                            text = it1,
+                            fontFamily = FontFamily(Font(R.font.opensans_regular))
+                        )
+                    }
+                    contacts[0].mobileNumber?.let { it1 ->
+                        Text(
+                            text = it1,
+                            fontFamily = FontFamily(Font(R.font.opensans_regular))
+                        )
+                    }
                 }
             }
         }
-        if (mediaPlayer?.isPlaying == true) {
-            mediaPlayer?.stop()
-        }
-    }
-
-    @Composable
-    fun SetFileItemCell(context: Context, fileItem: Uri) {
-        Box(
-            contentAlignment = Alignment.BottomStart,
-            modifier = Modifier
-                .background(shape = RoundedCornerShape(dimensionResource(id = R.dimen.spacing_40),
-                    dimensionResource(id = R.dimen.spacing_40),
-                    0.dp,
-                    dimensionResource(id = R.dimen.spacing_40)),
-                    color = ItemsBackground)
-                .wrapContentWidth()
-                .wrapContentHeight()
+    } else if (contacts?.isNotEmpty() == true) {
+        Card(
+            shape = RoundedCornerShape(
+                dimensionResource(id = R.dimen.spacing_40),
+                dimensionResource(id = R.dimen.spacing_40),
+                0.dp,
+                dimensionResource(id = R.dimen.spacing_40)
+            ),
+            backgroundColor = ItemsBackground
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .padding(dimensionResource(id = R.dimen.spacing_10dp))
-                    .background(color = ItemsBackground)
-            ) {
-                Image(
-                    imageVector = ImageVector.vectorResource(id = R.drawable.ic_uploaded_file),
-                    contentDescription = null
+                modifier = Modifier.padding(
+                    horizontal = dimensionResource(id = R.dimen.spacing_40),
+                    vertical = dimensionResource(id = R.dimen.spacing_10)
                 )
-
-                Spacer(modifier = Modifier.width(dimensionResource(id = R.dimen.spacing_10)))
-
-                Column {
-                    val file = File(fileItem.toString())
-                    var type: String
-                    var fileSize: Long
-                    context.let {
-                        val cR: ContentResolver = it.contentResolver
-                        val mime = MimeTypeMap.getSingleton()
-                        type = mime.getExtensionFromMimeType(cR.getType(fileItem))
-                            .toString()
-                        val fileDescriptor: AssetFileDescriptor? =
-                            it.contentResolver.openAssetFileDescriptor(fileItem, "r")
-                        fileSize = fileDescriptor?.length ?: 0L
-                    }
-                    val fileName = file.name + "." + type
-                    Text(text = fileName, fontFamily = FontFamily(Font(R.font.opensans_regular)))
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(text = (fileSize / 1024).toString() + " mb",
-                        fontFamily = FontFamily(Font(R.font.opensans_regular)))
-                }
-            }
-        }
-    }
-
-
-    @Composable
-    fun SetCameraPictureItemCell(cameraImage: Uri?) {
-        cameraImage?.let {
-            Card(
-                shape = RoundedCornerShape(dimensionResource(id = R.dimen.spacing_40), dimensionResource(id = R.dimen.spacing_40), 0.dp, dimensionResource(id = R.dimen.spacing_40)),
-                border = BorderStroke(width = 1.dp, color = ItemsBackground)
             ) {
-                Image(
-                    painter = rememberAsyncImagePainter(model = cameraImage),
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .size(dimensionResource(id = R.dimen.image_size))
-                        .padding(dimensionResource(id = R.dimen.spacing_10dp))
+                Icon(
+                    imageVector = ImageVector.vectorResource(id = R.drawable.ic_group),
+                    contentDescription = "",
+                )
+                Spacer(modifier = Modifier.width(dimensionResource(id = R.dimen.spacing_10dp)))
+                Text(
+                    text = "Contact 1 and ${contacts.size - 1} \n other contacts",
+                    fontFamily = FontFamily(Font(R.font.opensans_regular))
                 )
             }
         }
     }
+}
 
-    @Composable
-    fun SetCameraVideoItemCell(context: Context, video: Uri?) {
+@Composable
+fun SetGalleryItemCell(context: Context, galleryItem: Uri) {
+    val mediaTypeRaw = galleryItem.let { context.contentResolver.getType(it) }
+    if (mediaTypeRaw?.startsWith("video") == true) {
         var setPreviewDialog by remember {
             mutableStateOf(false)
         }
-
         if (setPreviewDialog) {
             Dialog(onDismissRequest = { setPreviewDialog = false }) {
                 Column(
@@ -660,29 +416,30 @@ class MainActivity : ComponentActivity() {
                 ) {
                     VideoView(
                         context = context,
-                        videoUri = video.toString()
+                        videoUri = galleryItem.toString()
                     )
                 }
             }
             Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_10dp)))
         }
-
+        val videoThumbnail = getThumbnail(context = context, galleryItem)
         Box(contentAlignment = Alignment.Center) {
-            Card(shape = RoundedCornerShape(dimensionResource(id = R.dimen.spacing_40), dimensionResource(id = R.dimen.spacing_40), 0.dp, dimensionResource(id = R.dimen.spacing_40)),
-                border = BorderStroke(width = 1.dp, color = ItemsBackground)) {
+            Card(
+                shape = RoundedCornerShape(
+                    dimensionResource(id = R.dimen.spacing_40),
+                    dimensionResource(id = R.dimen.spacing_40),
+                    0.dp,
+                    dimensionResource(id = R.dimen.spacing_40)
+                ),
+                border = BorderStroke(width = 1.dp, color = ItemsBackground)
+            ) {
                 Image(
-                    painter = rememberAsyncImagePainter(model = video?.let {
-                        getThumbnail(
-                            context,
-                            it
-                        )
-                    }
-                    ),
+                    painter = rememberAsyncImagePainter(model = videoThumbnail),
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
-                        .padding(dimensionResource(id = R.dimen.spacing_10dp))
                         .size(dimensionResource(id = R.dimen.image_size))
+                        .padding(dimensionResource(id = R.dimen.spacing_10dp))
                         .clickable(onClick = {
                             setPreviewDialog = true
                         })
@@ -695,7 +452,366 @@ class MainActivity : ComponentActivity() {
                     .size(dimensionResource(id = R.dimen.spacing_90))
             )
         }
+
+    } else {
+        Card(
+            shape = RoundedCornerShape(
+                dimensionResource(id = R.dimen.spacing_40),
+                dimensionResource(id = R.dimen.spacing_40),
+                0.dp,
+                dimensionResource(id = R.dimen.spacing_40)
+            ),
+            border = BorderStroke(width = 1.dp, color = ItemsBackground)
+        ) {
+            Image(
+                painter = rememberAsyncImagePainter(model = galleryItem),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .padding(dimensionResource(id = R.dimen.spacing_10dp))
+                    .size(dimensionResource(id = R.dimen.image_size))
+                    .clickable(onClick = {
+
+                    })
+            )
+        }
     }
+}
+
+@Composable
+fun SetLocationItemCell(context: Context, location: Location?) {
+    val customLinkifyTextView = remember {
+        TextView(context)
+    }
+    Column(
+        modifier = Modifier
+            .background(
+                color = ItemsBackground,
+                shape = RoundedCornerShape(
+                    dimensionResource(id = R.dimen.spacing_40),
+                    dimensionResource(id = R.dimen.spacing_40),
+                    0.dp,
+                    dimensionResource(id = R.dimen.spacing_40)
+                )
+            )
+            .width(dimensionResource(id = R.dimen.dialog_size))
+            .padding(dimensionResource(id = R.dimen.spacing_10dp))
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth(),
+            horizontalArrangement = Arrangement.Start
+        ) {
+            Image(painterResource(id = R.drawable.image_map), contentDescription = null)
+            Spacer(modifier = Modifier.width(dimensionResource(id = R.dimen.spacing_50)))
+            Text(
+                text = "${location?.location?.longitude},${location?.location?.latitude}",
+                fontFamily = FontFamily(Font(R.font.opensans_regular))
+            )
+        }
+        Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_10)))
+        Divider(modifier = Modifier.background(color = Color.Black))
+        AndroidView(modifier = Modifier,
+            factory = { customLinkifyTextView }) { textView ->
+            textView.text = location?.url
+            LinkifyCompat.addLinks(textView, Linkify.ALL)
+            Linkify.addLinks(
+                textView,
+                Patterns.PHONE,
+                "tel:",
+                Linkify.sPhoneNumberMatchFilter,
+                Linkify.sPhoneNumberTransformFilter
+            )
+            textView.movementMethod = LinkMovementMethod.getInstance()
+        }
+
+    }
+}
+
+@Composable
+fun SetVoiceItemCell(context: Context, audioFile: File?) {
+    var mediaPlayer: MediaPlayer? = null
+
+    if (audioFile != null) {
+        MediaPlayer.create(context, audioFile.toUri()).apply {
+            mediaPlayer = this
+        }
+    }
+
+    var durationScale by remember {
+        mutableStateOf(mediaPlayer?.getDurationInMmSs())
+    }
+    var isPlaying by remember {
+        mutableStateOf(false)
+    }
+    val handler = Handler()
+
+    Card(
+        backgroundColor = ItemsBackground,
+        shape = RoundedCornerShape(
+            dimensionResource(id = R.dimen.spacing_40),
+            dimensionResource(id = R.dimen.spacing_40),
+            0.dp,
+            dimensionResource(id = R.dimen.spacing_40)
+        )
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = dimensionResource(id = R.dimen.spacing_10dp))
+        ) {
+            Icon(
+                imageVector = ImageVector.vectorResource(id = R.drawable.ic_recorder),
+                contentDescription = null,
+                modifier = Modifier
+                    .size(dimensionResource(id = R.dimen.spacing_90))
+            )
+
+            Spacer(modifier = Modifier.width(dimensionResource(id = R.dimen.spacing_20)))
+
+            mediaPlayer?.setOnCompletionListener {
+                isPlaying = false
+                durationScale = it?.getDurationInMmSs()
+            }
+
+            Text(
+                text = "Audio $durationScale",
+                fontFamily = FontFamily(Font(R.font.opensans_regular))
+            )
+            Spacer(modifier = Modifier.width(dimensionResource(id = R.dimen.spacing_20)))
+            if (!isPlaying) {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_play_circle),
+                    contentDescription = "",
+                    modifier = Modifier
+                        .size(dimensionResource(id = R.dimen.spacing_70))
+                        .clickable(onClick = {
+                            mediaPlayer?.start()
+                            object : Runnable {
+                                override fun run() {
+                                    durationScale =
+                                        mediaPlayer?.getCurrentPositionInMmSs()
+                                    handler.postDelayed(this, 1000)
+                                }
+                            }.run()
+                            isPlaying = true
+                        })
+                )
+            } else {
+                Icon(
+                    painter = painterResource(R.drawable.ic_pause_circle),
+                    contentDescription = "",
+                    modifier = Modifier
+                        .size(dimensionResource(id = R.dimen.spacing_70))
+                        .clickable(onClick = {
+                            mediaPlayer?.pause()
+                            isPlaying = false
+                        })
+                )
+            }
+        }
+    }
+    if (mediaPlayer?.isPlaying == true) {
+        mediaPlayer?.stop()
+    }
+}
+
+@SuppressLint("Recycle")
+@Composable
+fun SetFileItemCell(context: Context, fileItem: Uri) {
+    Box(
+        contentAlignment = Alignment.BottomStart,
+        modifier = Modifier
+            .background(
+                shape = RoundedCornerShape(
+                    dimensionResource(id = R.dimen.spacing_40),
+                    dimensionResource(id = R.dimen.spacing_40),
+                    0.dp,
+                    dimensionResource(id = R.dimen.spacing_40)
+                ),
+                color = ItemsBackground
+            )
+            .wrapContentWidth()
+            .wrapContentHeight()
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .padding(dimensionResource(id = R.dimen.spacing_10dp))
+                .background(color = ItemsBackground)
+        ) {
+            Image(
+                imageVector = ImageVector.vectorResource(id = R.drawable.ic_uploaded_file),
+                contentDescription = null
+            )
+
+            Spacer(modifier = Modifier.width(dimensionResource(id = R.dimen.spacing_10)))
+
+            Column {
+                val file = File(fileItem.toString())
+                var type: String
+                var fileSize: Long
+                context.let {
+                    val cR: ContentResolver = it.contentResolver
+                    val mime = MimeTypeMap.getSingleton()
+                    type = mime.getExtensionFromMimeType(cR.getType(fileItem))
+                        .toString()
+                    val fileDescriptor: AssetFileDescriptor? =
+                        it.contentResolver.openAssetFileDescriptor(fileItem, "r")
+                    fileSize = fileDescriptor?.length ?: 0L
+                }
+                val fileName = file.name + "." + type
+                Text(text = fileName, fontFamily = FontFamily(Font(R.font.opensans_regular)))
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = (fileSize / 1024).toString() + " mb",
+                    fontFamily = FontFamily(Font(R.font.opensans_regular))
+                )
+            }
+        }
+    }
+}
+
+
+@Composable
+fun SetCameraPictureItemCell(cameraImage: Uri?) {
+    cameraImage?.let {
+        Card(
+            shape = RoundedCornerShape(
+                dimensionResource(id = R.dimen.spacing_40),
+                dimensionResource(id = R.dimen.spacing_40),
+                0.dp,
+                dimensionResource(id = R.dimen.spacing_40)
+            ),
+            border = BorderStroke(width = 1.dp, color = ItemsBackground)
+        ) {
+            Image(
+                painter = rememberAsyncImagePainter(model = cameraImage),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .size(dimensionResource(id = R.dimen.image_size))
+                    .padding(dimensionResource(id = R.dimen.spacing_10dp))
+            )
+        }
+    }
+}
+
+@Composable
+fun SetCameraVideoItemCell(context: Context, video: Uri?) {
+    var setPreviewDialog by remember {
+        mutableStateOf(false)
+    }
+
+    if (setPreviewDialog) {
+        Dialog(onDismissRequest = { setPreviewDialog = false }) {
+            Column(
+                modifier = Modifier
+                    .size(dimensionResource(id = R.dimen.dialog_size))
+                    .clickable(onClick = {
+                        setPreviewDialog = false
+                    })
+            ) {
+                VideoView(
+                    context = context,
+                    videoUri = video.toString()
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_10dp)))
+    }
+
+    Box(contentAlignment = Alignment.Center) {
+        Card(
+            shape = RoundedCornerShape(
+                dimensionResource(id = R.dimen.spacing_40),
+                dimensionResource(id = R.dimen.spacing_40),
+                0.dp,
+                dimensionResource(id = R.dimen.spacing_40)
+            ),
+            border = BorderStroke(width = 1.dp, color = ItemsBackground)
+        ) {
+            Image(
+                painter = rememberAsyncImagePainter(model = video?.let {
+                    getThumbnail(
+                        context,
+                        it
+                    )
+                }
+                ),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .padding(dimensionResource(id = R.dimen.spacing_10dp))
+                    .size(dimensionResource(id = R.dimen.image_size))
+                    .clickable(onClick = {
+                        setPreviewDialog = true
+                    })
+            )
+        }
+        Image(
+            painter = rememberAsyncImagePainter(model = R.drawable.ic_play_circle),
+            contentDescription = null,
+            modifier = Modifier
+                .size(dimensionResource(id = R.dimen.spacing_90))
+        )
+    }
+}
+
+@Composable
+fun SetChatTextCell(text: String) {
+    if (text.length > 25) {
+        Box(
+            contentAlignment = Alignment.BottomStart,
+            modifier = Modifier
+                .width(dimensionResource(id = R.dimen.chat_text_cell_size))
+                .background(
+                    color = ItemsBackground,
+                    shape = RoundedCornerShape(
+                        dimensionResource(id = R.dimen.spacing_50),
+                        dimensionResource(id = R.dimen.spacing_50),
+                        0.dp,
+                        dimensionResource(id = R.dimen.spacing_50)
+                    )
+                )
+        )
+        {
+            Text(
+                text = text,
+                fontSize = 16.sp,
+                modifier = Modifier
+                    .padding(dimensionResource(id = R.dimen.spacing_10dp)),
+                fontFamily = FontFamily(Font(R.font.opensans_regular))
+            )
+        }
+        Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_10dp)))
+    } else {
+        Box(
+            contentAlignment = Alignment.BottomStart,
+            modifier = Modifier
+                .background(
+                    color = ItemsBackground,
+                    shape = RoundedCornerShape(
+                        dimensionResource(id = R.dimen.spacing_50),
+                        dimensionResource(id = R.dimen.spacing_50),
+                        0.dp,
+                        dimensionResource(id = R.dimen.spacing_50)
+                    )
+                )
+                .wrapContentWidth()
+        )
+        {
+            Text(
+                text = text,
+                fontSize = 16.sp,
+                modifier = Modifier
+                    .padding(dimensionResource(id = R.dimen.spacing_10dp)),
+                fontFamily = FontFamily(Font(R.font.opensans_regular))
+            )
+        }
+        Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_10dp)))
+    }
+
 }
 
 @Composable
@@ -703,13 +819,18 @@ fun DisplayFlexItems(
     selectedFlex: (Sources) -> Unit,
     setFlexItemDialog: (Boolean) -> Unit,
 ) {
-    Column(
-        verticalArrangement = Arrangement.SpaceEvenly,
+    Row(
+        horizontalArrangement = Arrangement.End,
         modifier = Modifier
-            .padding(top = dimensionResource(id = R.dimen.spacing_10dp), start = dimensionResource(
-                id = R.dimen.spacing_10dp))
-            .background(color = Color.White,
-                shape = RoundedCornerShape(dimensionResource(id = R.dimen.spacing_10dp)))
+            .padding(
+                top = dimensionResource(id = R.dimen.spacing_10dp), start = dimensionResource(
+                    id = R.dimen.spacing_10dp
+                )
+            )
+            .background(
+                color = Color.White,
+                shape = RoundedCornerShape(dimensionResource(id = R.dimen.spacing_10dp))
+            ), verticalAlignment = Alignment.CenterVertically
     ) {
         Image(imageVector = ImageVector.vectorResource(R.drawable.ic_camera),
             contentDescription = null,

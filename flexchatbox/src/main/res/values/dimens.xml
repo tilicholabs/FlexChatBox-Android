@@ -10,6 +10,7 @@
     <dimen name="spacing_80">40dp</dimen>
     <dimen name="spacing_90">48dp</dimen>
     <dimen name="spacing_100">56dp</dimen>
+    <dimen name="chat_text_cell_size">250dp</dimen>
     <dimen name="preview_image_height">473dp</dimen>
     <dimen name="spacing_10dp">10dp</dimen>
     <dimen name="image_size">150dp</dimen>
