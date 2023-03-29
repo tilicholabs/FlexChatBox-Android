@@ -15,4 +15,5 @@
     <dimen name="spacing_10dp">10dp</dimen>
     <dimen name="image_size">150dp</dimen>
     <dimen name="dialog_size">300dp</dimen>
+    <dimen name="drop_down_width">125dp</dimen>
 </resources>

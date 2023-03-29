@@ -10,4 +10,5 @@
     <string name="send">Send</string>
     <string name="avatar">avatar</string>
     <string name="enable_location">Please enable device location.</string>
+    <string name="tony_stark">Tony Stark</string>
 </resources>

@@ -40,12 +40,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Card
 import androidx.compose.material.Divider
+import androidx.compose.material.DropdownMenu
+import androidx.compose.material.DropdownMenuItem
 import androidx.compose.material.Icon
 import androidx.compose.material.Scaffold
 import androidx.compose.material.Text
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -61,9 +63,11 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -123,27 +127,58 @@ class MainActivity : ComponentActivity() {
                             .padding(horizontal = dimensionResource(id = R.dimen.spacing_10dp))
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(imageVector = Icons.Default.ArrowBack, contentDescription = null)
-                            Spacer(modifier = Modifier.width(dimensionResource(id = R.dimen.spacing_10dp)))
                             Image(
                                 painterResource(id = R.drawable.app_chat_profile),
                                 contentDescription = null,
                                 modifier = Modifier
+                                    .padding(start = dimensionResource(id = R.dimen.spacing_10))
                                     .size(dimensionResource(id = R.dimen.spacing_80))
                                     .clip(
                                         CircleShape
                                     )
                             )
                             Spacer(modifier = Modifier.width(dimensionResource(id = R.dimen.spacing_10dp)))
-                            Text(text = "Tony Stark", fontSize = 16.sp)
+                            Text(text = stringResource(id = R.string.tony_stark), fontSize = 16.sp)
                             Spacer(modifier = Modifier.weight(1f))
-                            Image(
-                                imageVector = Icons.Filled.Add,
-                                contentDescription = null,
-                                modifier = Modifier.clickable(onClick = {
-                                    showFlexItems = true
-                                })
-                            )
+
+                            var mExpanded by remember { mutableStateOf(false) }
+
+                            val sources = listOf(Sources.CAMERA, Sources.FILES, Sources.GALLERY, Sources.LOCATION, Sources.VOICE, Sources.CONTACTS)
+                            var mSelectedText by remember { mutableStateOf(Sources.CAMERA.toString()) }
+                            val icon = if (mExpanded)
+                                Icons.Filled.KeyboardArrowUp
+                            else
+                                Icons.Filled.KeyboardArrowDown
+
+                            Column {
+                                Box(contentAlignment = Alignment.CenterEnd) {
+                                    Row {
+                                        Text(text = mSelectedText,
+                                            fontSize = 16.sp,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis)
+                                        Icon(icon, null,
+                                            Modifier.clickable { mExpanded = !mExpanded })
+                                    }
+                                }
+
+                                DropdownMenu(
+                                    expanded = mExpanded,
+                                    onDismissRequest = { mExpanded = false },
+                                    modifier = Modifier
+                                        .width(dimensionResource(id = R.dimen.drop_down_width))
+                                ) {
+                                    sources.forEach { label ->
+                                        DropdownMenuItem(onClick = {
+                                            selectedFlex = label
+                                            mSelectedText = label.toString().lowercase()
+                                            mExpanded = false
+                                        }) {
+                                            Text(text = label.toString())
+                                        }
+                                    }
+                                }
+                            }
                         }
                         Divider(
                             color = Color.Black,
@@ -890,7 +925,8 @@ fun DisplayFlexItems(
                 .clickable(onClick = {
                     selectedFlex.invoke(Sources.FILES)
                     setFlexItemDialog.invoke(false)
-                }), colorFilter = ColorFilter.tint(Color.Black)
+                }),
+            colorFilter = ColorFilter.tint(Color.Black)
         )
     }
 }

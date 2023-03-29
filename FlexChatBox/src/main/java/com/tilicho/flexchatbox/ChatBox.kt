@@ -9,7 +9,6 @@ import android.net.Uri
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
-import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -58,6 +57,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -71,6 +71,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
@@ -86,6 +87,9 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.app.ActivityCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.LifecycleOwner
 import coil.compose.rememberAsyncImagePainter
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberPermissionState
@@ -103,6 +107,7 @@ import com.tilicho.flexchatbox.utils.cameraIntent
 import com.tilicho.flexchatbox.utils.checkPermission
 import com.tilicho.flexchatbox.utils.findActivity
 import com.tilicho.flexchatbox.utils.getContacts
+import com.tilicho.flexchatbox.utils.getGrantedPermissions
 import com.tilicho.flexchatbox.utils.getImageUri
 import com.tilicho.flexchatbox.utils.getLocation
 import com.tilicho.flexchatbox.utils.getMediaType
@@ -178,13 +183,118 @@ fun ChatBox(
 
     var showSettingsDialog by remember { mutableStateOf(false) }
 
-    var isPermissionPermanentlyDenied by remember { mutableStateOf(false) }
+    var isCameraPermissionPermanentlyDenied by remember { mutableStateOf(false) }
+    var isGalleryPermissionPermanentlyDenied by remember { mutableStateOf(false) }
+    var isLocationPermissionPermanentlyDenied by remember { mutableStateOf(false) }
+    var isContactsPermissionPermanentlyDenied by remember { mutableStateOf(false) }
+    var isFilesPermissionPermanentlyDenied by remember { mutableStateOf(false) }
+    var isRecordAudioPermissionPermanentlyDenied by remember { mutableStateOf(false) }
 
-    if (isPermissionPermanentlyDenied) {
+    if (isCameraPermissionPermanentlyDenied) {
         if (showSettingsDialog) {
             ShowNavigateToAppSettingsDialog(context = context, onDismissCallback = {
                 showSettingsDialog = it
             })
+        }
+        OnLifecycleEvent { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> {
+                    if (getGrantedPermissions(context).contains(Manifest.permission.CAMERA)) {
+                        isCameraPermissionPermanentlyDenied = false
+                    }
+                }
+                else -> {}
+            }
+        }
+    }
+
+    if (isGalleryPermissionPermanentlyDenied) {
+        if (showSettingsDialog) {
+            ShowNavigateToAppSettingsDialog(context = context, onDismissCallback = {
+                showSettingsDialog = it
+            })
+        }
+        OnLifecycleEvent { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> {
+                    if (getGrantedPermissions(context).contains(Manifest.permission.READ_EXTERNAL_STORAGE)) {
+                        isGalleryPermissionPermanentlyDenied = false
+                    }
+                }
+                else -> {}
+            }
+        }
+    }
+
+    if (isLocationPermissionPermanentlyDenied) {
+        if (showSettingsDialog) {
+            ShowNavigateToAppSettingsDialog(context = context, onDismissCallback = {
+                showSettingsDialog = it
+            })
+        }
+        OnLifecycleEvent { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> {
+                    if (getGrantedPermissions(context).contains(Manifest.permission.ACCESS_FINE_LOCATION)) {
+                        isLocationPermissionPermanentlyDenied = false
+                    }
+                }
+                else -> {}
+            }
+        }
+    }
+
+    if (isContactsPermissionPermanentlyDenied) {
+        if (showSettingsDialog) {
+            ShowNavigateToAppSettingsDialog(context = context, onDismissCallback = {
+                showSettingsDialog = it
+            })
+        }
+        OnLifecycleEvent { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> {
+                    if (getGrantedPermissions(context).contains(Manifest.permission.READ_CONTACTS)) {
+                        isContactsPermissionPermanentlyDenied = false
+                    }
+                }
+                else -> {}
+            }
+        }
+    }
+
+    if (isFilesPermissionPermanentlyDenied) {
+        if (showSettingsDialog) {
+            ShowNavigateToAppSettingsDialog(context = context, onDismissCallback = {
+                showSettingsDialog = it
+            })
+        }
+        OnLifecycleEvent { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> {
+                    if (getGrantedPermissions(context).contains(Manifest.permission.READ_EXTERNAL_STORAGE)) {
+                        isFilesPermissionPermanentlyDenied = false
+                    }
+                }
+                else -> {}
+            }
+        }
+    }
+
+    if (isRecordAudioPermissionPermanentlyDenied) {
+        if (showSettingsDialog) {
+            ShowNavigateToAppSettingsDialog(context = context, onDismissCallback = {
+                showSettingsDialog = it
+            })
+        }
+        OnLifecycleEvent { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> {
+                    if (getGrantedPermissions(context).contains(Manifest.permission.RECORD_AUDIO)) {
+                        isRecordAudioPermissionPermanentlyDenied = false
+                    }
+                }
+                else -> {}
+            }
         }
     }
 
@@ -257,11 +367,11 @@ fun ChatBox(
             ) && !isGranted
 
             if (permissionPermanentlyDenied) {
-                isPermissionPermanentlyDenied = true
+                isGalleryPermissionPermanentlyDenied = true
                 showSettingsDialog = true
             }
             if (isGranted) {
-                isPermissionPermanentlyDenied = false
+                isGalleryPermissionPermanentlyDenied = false
                 showDialog = false
                 galleryLauncher.launch(GALLERY_INPUT_TYPE)
             }
@@ -274,11 +384,11 @@ fun ChatBox(
             ) && !isGranted
 
             if (permissionPermanentlyDenied) {
-                isPermissionPermanentlyDenied = true
+                isCameraPermissionPermanentlyDenied = true
                 showSettingsDialog = true
             }
             if (isGranted) {
-                isPermissionPermanentlyDenied = false
+                isCameraPermissionPermanentlyDenied = false
                 showDialog = false
                 cameraIntent(cameraLauncher)
             }
@@ -291,11 +401,11 @@ fun ChatBox(
             ) && !isGranted
 
             if (permissionPermanentlyDenied) {
-                isPermissionPermanentlyDenied = true
+                isLocationPermissionPermanentlyDenied = true
                 showSettingsDialog = true
             }
             if (isGranted) {
-                isPermissionPermanentlyDenied = false
+                isLocationPermissionPermanentlyDenied = false
                 showDialog = false
                 if (!isLocationEnabled(context)) {
                     Toast.makeText(context, R.string.enable_location, Toast.LENGTH_LONG).show()
@@ -319,12 +429,12 @@ fun ChatBox(
             ) && !isGranted
 
             if (permissionPermanentlyDenied) {
-                isPermissionPermanentlyDenied = true
+                isContactsPermissionPermanentlyDenied = true
                 showSettingsDialog = true
             }
             if (isGranted) {
                 val data = getContacts(context)
-                isPermissionPermanentlyDenied = false
+                isContactsPermissionPermanentlyDenied = false
                 showDialog = false
                 contacts = data
                 displayContacts = true
@@ -338,11 +448,11 @@ fun ChatBox(
             ) && !isGranted
 
             if (permissionPermanentlyDenied) {
-                isPermissionPermanentlyDenied = true
+                isFilesPermissionPermanentlyDenied = true
                 showSettingsDialog = true
             }
             if (isGranted) {
-                isPermissionPermanentlyDenied = false
+                isFilesPermissionPermanentlyDenied = false
                 showDialog = false
                 openFiles(context, fileLauncher)
             }
@@ -355,11 +465,11 @@ fun ChatBox(
             ) && !isGranted
 
             if (permissionPermanentlyDenied) {
-                isPermissionPermanentlyDenied = true
+                isRecordAudioPermissionPermanentlyDenied = true
                 showSettingsDialog = true
             }
             if (isGranted) {
-                isPermissionPermanentlyDenied = false
+                isRecordAudioPermissionPermanentlyDenied = false
                 showDialog = false
             }
         }
@@ -436,16 +546,20 @@ fun ChatBox(
             if (true) {
                 when (source) {
                     Sources.GALLERY -> {
-                        SourceImage(icon = R.drawable.ic_gallery,
-                            isDenied = isPermissionPermanentlyDenied,
+                        SourceImage(context = context,
+                            icon = R.drawable.ic_gallery,
+                            isDenied = isGalleryPermissionPermanentlyDenied,
+                            permission = Manifest.permission.READ_EXTERNAL_STORAGE,
                             onClickIcon = {
                                 galleryPermissionState.launchPermissionRequest()
                             })
                     }
 
                     Sources.LOCATION -> {
-                        SourceImage(icon = R.drawable.ic_location,
-                            isDenied = isPermissionPermanentlyDenied,
+                        SourceImage(context = context,
+                            icon = R.drawable.ic_location,
+                            isDenied = isLocationPermissionPermanentlyDenied,
+                            permission = Manifest.permission.ACCESS_FINE_LOCATION,
                             onClickIcon = {
                                 locationPermissionState.launchPermissionRequest()
                             })
@@ -455,16 +569,18 @@ fun ChatBox(
                         var iconState by remember {
                             mutableStateOf(R.color.c_2ba6ff)
                         }
-                        iconState = if (isPermissionPermanentlyDenied) {
-                            R.color.c_ebeef1
+                        if (!checkPermission(context, Manifest.permission.RECORD_AUDIO)) {
+                            if (isRecordAudioPermissionPermanentlyDenied) {
+                                iconState = R.color.c_ebeef1
+                            }
                         } else {
-                            R.color.c_2ba6ff
+                            iconState = R.color.c_2ba6ff
                         }
                         Box(
                             contentAlignment = Alignment.Center,
                             modifier = Modifier
                                 .clip(shape = CircleShape)
-                                .background(color = colorResource(id = R.color.c_2ba6ff))
+                                .background(color = colorResource(id = iconState))
                         ) {
                             Image(
                                 imageVector = ImageVector.vectorResource(R.drawable.ic_mic),
@@ -480,21 +596,25 @@ fun ChatBox(
                                                         Manifest.permission.RECORD_AUDIO
                                                     )
                                                 ) {
+                                                    isRecordAudioPermissionPermanentlyDenied = false
                                                     try {
                                                         File(
                                                             context.cacheDir,
                                                             "audio${System.currentTimeMillis()}.mp3"
                                                         ).also {
-                                                            Handler(Looper.getMainLooper()).postDelayed(
-                                                                {
-                                                                    if (isPressed) {
-                                                                        recorder.start(it)
-                                                                        audioFile = it
-                                                                    }
-                                                                }, 200
-                                                            )
+                                                            File(context.cacheDir,
+                                                                "audio${System.currentTimeMillis()}.mp3").also {
+                                                                Handler(Looper.getMainLooper()).postDelayed(
+                                                                    {
+                                                                        if (isPressed) {
+                                                                            recorder.start(it)
+                                                                            audioFile = it
+                                                                        }
+                                                                    }, 200
+                                                                )
+                                                            }
+                                                            awaitRelease()
                                                         }
-                                                        awaitRelease()
                                                     } finally {
                                                         try {
                                                             isPressed = false
@@ -509,7 +629,7 @@ fun ChatBox(
                                                 } else {
                                                     recordAudioPermissionState.launchPermissionRequest()
                                                 }
-                                            },
+                                            }
                                         )
                                     }
                             )
@@ -517,46 +637,57 @@ fun ChatBox(
                     }
 
                     Sources.CONTACTS -> {
-                        SourceImage(
+                        SourceImage(context = context,
                             icon = R.drawable.ic_person,
-                            isDenied = isPermissionPermanentlyDenied,
+                            isDenied = isContactsPermissionPermanentlyDenied,
+                            Manifest.permission.READ_CONTACTS,
                             onClickIcon = {
                                 contactsPermissionState.launchPermissionRequest()
                             })
                     }
                     Sources.FILES -> {
-                        SourceImage(icon = R.drawable.ic_file,
-                            isDenied = isPermissionPermanentlyDenied,
+                        SourceImage(context = context,
+                            icon = R.drawable.ic_file,
+                            isDenied = isFilesPermissionPermanentlyDenied,
+                            Manifest.permission.READ_EXTERNAL_STORAGE,
                             onClickIcon = {
                                 filesPermissionState.launchPermissionRequest()
                             })
                     }
                     Sources.CAMERA -> {
-                        SourceImage(
+                        SourceImage(context = context,
                             icon = R.drawable.ic_camera,
-                            isDenied = isPermissionPermanentlyDenied
-                        ) {
-                            cameraPermissionState.launchPermissionRequest()
-                        }
+                            isDenied = isCameraPermissionPermanentlyDenied,
+                            Manifest.permission.CAMERA, onClickIcon = {
+                                cameraPermissionState.launchPermissionRequest()
+                            })
                     }
                     else -> {}
                 }
             }
-
         }
     }
 }
 
+
 @Composable
-fun SourceImage(icon: Int, isDenied: Boolean, onClickIcon: () -> Unit) {
+fun SourceImage(
+    context: Context,
+    icon: Int,
+    isDenied: Boolean,
+    permission: String,
+    onClickIcon: () -> Unit,
+) {
     var iconState by remember {
         mutableStateOf(R.color.c_2ba6ff)
     }
 
-    iconState = if (isDenied) {
-        R.color.c_ebeef1
+    if (!checkPermission(context = context, permission)) {
+        if (isDenied) {
+            iconState = R.color.c_ebeef1
+        }
     } else {
-        R.color.c_2ba6ff
+        iconState = R.color.c_2ba6ff
     }
     Box(
         contentAlignment = Alignment.Center,
@@ -1026,8 +1157,6 @@ fun ShowNavigateToAppSettingsDialog(context: Context, onDismissCallback: (Boolea
                         modifier = Modifier.clickable {
                             onDismissCallback(false)
                             context.navigateToAppSettings()
-                            val x = 10
-                            Log.d("tag_0394", x.toString())
                         })
 
                     Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_40)))
@@ -1039,6 +1168,24 @@ fun ShowNavigateToAppSettingsDialog(context: Context, onDismissCallback: (Boolea
                         })
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun OnLifecycleEvent(onEvent: (owner: LifecycleOwner, event: Lifecycle.Event) -> Unit) {
+    val eventHandler = rememberUpdatedState(onEvent)
+    val lifecycleOwner = rememberUpdatedState(LocalLifecycleOwner.current)
+
+    DisposableEffect(lifecycleOwner.value) {
+        val lifecycle = lifecycleOwner.value.lifecycle
+        val observer = LifecycleEventObserver { owner, event ->
+            eventHandler.value(owner, event)
+        }
+
+        lifecycle.addObserver(observer)
+        onDispose {
+            lifecycle.removeObserver(observer)
         }
     }
 }

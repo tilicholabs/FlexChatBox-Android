@@ -1,6 +1,5 @@
 package com.tilicho.flexchatbox.utils
 
-import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.ContentResolver
@@ -21,15 +20,12 @@ import android.provider.ContactsContract
 import android.provider.MediaStore
 import android.provider.Settings
 import android.provider.Settings.SettingNotFoundException
-import android.text.TextUtils
-import android.util.Log
 import android.util.Size
 import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.activity.result.ActivityResult
 import androidx.core.content.ContextCompat
 import com.tilicho.flexchatbox.enums.MediaType
 import java.io.ByteArrayOutputStream
-import java.io.File
 import java.io.Serializable
 import java.util.*
 
@@ -71,8 +67,8 @@ fun getLocation(context: Context): Location? {
                 if (location == null) {
                     val criteria = Criteria()
                     criteria.accuracy = Criteria.ACCURACY_COARSE
-                    val _provider: String? = locationManager.getBestProvider(criteria, true)
-                    location = _provider?.let { locationManager.getLastKnownLocation(it) }
+                    val locationProvider: String? = locationManager.getBestProvider(criteria, true)
+                    location = locationProvider?.let { locationManager.getLastKnownLocation(it) }
                 }
             }
         }
@@ -91,6 +87,7 @@ fun cameraIntent(videoLauncher: ManagedActivityResultLauncher<Intent, ActivityRe
     videoLauncher.launch(chooserIntent)
 }
 
+@SuppressLint("QueryPermissionsNeeded")
 fun openFiles(
     context: Context,
     fileLauncher: ManagedActivityResultLauncher<Intent, ActivityResult>,
@@ -161,7 +158,7 @@ fun getContacts(applicationContext: Context): List<ContactData> {
     }
     return list.distinct()
         .sortedBy { it.name }
-        .filter { it ->
+        .filter {
             it.mobileNumber?.replaceFirst("+", "").let { number ->
                 number?.matches(primaryMobileNumberRegex) == true ||
                         number?.matches(secondaryMobileNumberRegex) == true
@@ -239,19 +236,26 @@ internal fun Context.findActivity(): Activity {
 }
 
 fun isLocationEnabled(context: Context): Boolean {
-    var locationMode = 0
-    val locationProviders: String
-    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-        locationMode = try {
-            Settings.Secure.getInt(context.contentResolver, Settings.Secure.LOCATION_MODE)
-        } catch (e: SettingNotFoundException) {
-            e.printStackTrace()
-            return false
-        }
-        locationMode != Settings.Secure.LOCATION_MODE_OFF
-    } else {
-        locationProviders = Settings.Secure.getString(context.contentResolver,
-            Settings.Secure.LOCATION_PROVIDERS_ALLOWED)
-        !TextUtils.isEmpty(locationProviders)
+    val locationMode: Int = try {
+        Settings.Secure.getInt(context.contentResolver, Settings.Secure.LOCATION_MODE)
+    } catch (e: SettingNotFoundException) {
+        e.printStackTrace()
+        return false
     }
+    return locationMode != Settings.Secure.LOCATION_MODE_OFF
+}
+
+fun getGrantedPermissions(context: Context): List<String> {
+    val granted: MutableList<String> = ArrayList()
+    try {
+        val pi: PackageInfo =
+            context.packageManager.getPackageInfo(context.packageName, PackageManager.GET_PERMISSIONS)
+        for (i in pi.requestedPermissions.indices) {
+            if (pi.requestedPermissionsFlags[i] and PackageInfo.REQUESTED_PERMISSION_GRANTED != 0) {
+                granted.add(pi.requestedPermissions[i])
+            }
+        }
+    } catch (_: Exception) {
+    }
+    return granted
 }
