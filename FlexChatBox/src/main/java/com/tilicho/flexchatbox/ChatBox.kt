@@ -5,10 +5,12 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
 import android.graphics.Bitmap
+import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -44,6 +46,8 @@ import androidx.compose.material.Card
 import androidx.compose.material.Divider
 import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
+import androidx.compose.material.Slider
+import androidx.compose.material.SliderDefaults
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.material.TextField
@@ -74,6 +78,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.dimensionResource
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.Font
@@ -87,14 +92,20 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.app.ActivityCompat
+import androidx.core.net.toUri
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
 import coil.compose.rememberAsyncImagePainter
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberPermissionState
+import com.google.android.exoplayer2.DefaultRenderersFactory
 import com.google.android.exoplayer2.ExoPlayer
 import com.google.android.exoplayer2.MediaItem
+import com.google.android.exoplayer2.PlaybackException
+import com.google.android.exoplayer2.Player
+import com.google.android.exoplayer2.RenderersFactory
+import com.google.android.exoplayer2.trackselection.DefaultTrackSelector
 import com.google.android.exoplayer2.ui.StyledPlayerView
 import com.tilicho.flexchatbox.audiorecorder.AndroidAudioRecorder
 import com.tilicho.flexchatbox.enums.MediaType
@@ -107,6 +118,8 @@ import com.tilicho.flexchatbox.utils.cameraIntent
 import com.tilicho.flexchatbox.utils.checkPermission
 import com.tilicho.flexchatbox.utils.findActivity
 import com.tilicho.flexchatbox.utils.getContacts
+import com.tilicho.flexchatbox.utils.getCurrentPositionInMmSs
+import com.tilicho.flexchatbox.utils.getDurationInMmSs
 import com.tilicho.flexchatbox.utils.getGrantedPermissions
 import com.tilicho.flexchatbox.utils.getImageUri
 import com.tilicho.flexchatbox.utils.getLocation
@@ -119,7 +132,7 @@ import kotlinx.coroutines.delay
 import java.io.File
 import kotlin.time.Duration.Companion.seconds
 
-@OptIn(ExperimentalPermissionsApi::class)
+@OptIn(ExperimentalPermissionsApi::class, ExperimentalComposeUiApi::class)
 @SuppressLint("SuspiciousIndentation")
 @RequiresApi(Build.VERSION_CODES.Q)
 @Composable
@@ -156,7 +169,11 @@ fun ChatBox(
         mutableStateOf(false)
     }
 
-    val isRecording by remember {
+    var isRecording by remember {
+        mutableStateOf(false)
+    }
+
+    var showAudioPreview by remember {
         mutableStateOf(false)
     }
 
@@ -479,67 +496,74 @@ fun ChatBox(
         verticalAlignment = Alignment.Bottom,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        if (isRecording) {
-            AudioRecordingUi()
+        if (showAudioPreview) {
+            AudioPreviewUI(context = context, audioFile = audioFile,
+                onClickDelete = {
+                    showAudioPreview = false
+                }, onClickSend = {
+                    showAudioPreview = false
+                    audioFile?.let { recordedAudio(it) }
+                })
         } else {
-            var sendIconState by remember {
-                mutableStateOf(Color(0xFF808080))
-            }
-            sendIconState = if (textFieldValue.isNotEmpty()) {
-                colorResource(R.color.c_2ba6ff)
+            if (isRecording) {
+                AudioRecordingUi()
             } else {
-                Color(0xFF808080)
-            }
-            Row(
-                verticalAlignment = Alignment.Bottom, modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(4f)
-                    .clip(shape = RoundedCornerShape(dimensionResource(id = R.dimen.spacing_60)))
-                    .background(color = colorResource(id = R.color.c_edf0ee))
-            ) {
-                TextField(
-                    value = textFieldValue,
-                    onValueChange = {
-                        textFieldValue = it
-                    },
-                    placeholder = {
-                        Text(
-                            text = stringResource(id = R.string.hint),
-                            color = colorResource(id = R.color.c_placeholder),
-                            fontSize = 18.sp
-                        )
-                    },
-                    colors = TextFieldDefaults.textFieldColors(
-                        backgroundColor = Color.Transparent,
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent,
-                    ),
-                    singleLine = false,
-                    maxLines = 4,
-                    modifier = Modifier.weight(6f),
-                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences)
-                )
-                IconButton(modifier = Modifier.weight(1.5f),
-                    onClick = {
-                        onClickSend.invoke(textFieldValue)
-                        textFieldValue = String.empty()
-                    }
-                ) {
-                    Icon(
-                        imageVector = ImageVector.vectorResource(id = R.drawable.ic_send),
-                        contentDescription = null,
-                        tint = sendIconState
-                    )
+                var sendIconState by remember {
+                    mutableStateOf(Color(0xFF808080))
                 }
-
-
+                sendIconState = if (textFieldValue.isNotEmpty()) {
+                    colorResource(R.color.c_2ba6ff)
+                } else {
+                    Color(0xFF808080)
+                }
+                Row(
+                    verticalAlignment = Alignment.Bottom, modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(4f)
+                        .clip(shape = RoundedCornerShape(dimensionResource(id = R.dimen.spacing_60)))
+                        .background(color = colorResource(id = R.color.c_edf0ee))
+                ) {
+                    TextField(
+                        value = textFieldValue,
+                        onValueChange = {
+                            textFieldValue = it
+                        },
+                        placeholder = {
+                            Text(
+                                text = stringResource(id = R.string.hint),
+                                color = colorResource(id = R.color.c_placeholder),
+                                fontSize = 18.sp
+                            )
+                        },
+                        colors = TextFieldDefaults.textFieldColors(
+                            backgroundColor = Color.Transparent,
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent,
+                        ),
+                        singleLine = false,
+                        maxLines = 4,
+                        modifier = Modifier.weight(6f),
+                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences)
+                    )
+                    IconButton(modifier = Modifier.weight(1.5f),
+                        onClick = {
+                            onClickSend.invoke(textFieldValue)
+                            textFieldValue = String.empty()
+                        }
+                    ) {
+                        Icon(
+                            imageVector = ImageVector.vectorResource(id = R.drawable.ic_send),
+                            contentDescription = null,
+                            tint = sendIconState
+                        )
+                    }
+                }
             }
         }
 
         Row(
             modifier = Modifier
-                .padding(dimensionResource(id = R.dimen.spacing_10))
-                .weight(1f),
+                .padding(start = dimensionResource(id = R.dimen.spacing_20)),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
 
@@ -607,6 +631,7 @@ fun ChatBox(
                                                                 Handler(Looper.getMainLooper()).postDelayed(
                                                                     {
                                                                         if (isPressed) {
+                                                                            isRecording = true
                                                                             recorder.start(it)
                                                                             audioFile = it
                                                                         }
@@ -617,10 +642,15 @@ fun ChatBox(
                                                         }
                                                     } finally {
                                                         try {
-                                                            isPressed = false
-                                                            recorder.stop()
-                                                            audioFile?.let {
-                                                                recordedAudio.invoke(it)
+                                                            if (isRecording) {
+                                                                isPressed = false
+                                                                recorder.stop()
+                                                                isRecording = false
+                                                                showAudioPreview = true
+                                                                /*audioFile?.let {
+                                                                    recordedAudio.invoke(it)
+                                                                }*/
+
                                                             }
                                                         } catch (_: Exception) {
                                                             // do nothing
@@ -842,46 +872,42 @@ fun AudioRecordingUi() {
     Row(
         modifier = Modifier
             .wrapContentWidth()
-            .width(230.dp)
             .height(dimensionResource(id = R.dimen.spacing_90))
             .padding(horizontal = dimensionResource(id = R.dimen.spacing_10dp))
-            .padding(top = dimensionResource(id = R.dimen.spacing_10dp))
+            .padding(top = dimensionResource(id = R.dimen.spacing_10dp), start = dimensionResource(
+                id = R.dimen.spacing_70)),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(
-            imageVector = ImageVector.vectorResource(id = R.drawable.ic_delete_new),
-            contentDescription = null,
-            tint = Color.Red
+        Text(
+            text = stringResource(id = R.string.recording_audio),
+            color = Color.Black,
+            fontFamily = FontFamily(Font(R.font.opensans_regular)),
+            fontSize = 16.sp
         )
-        Spacer(modifier = Modifier.width(dimensionResource(id = R.dimen.spacing_10dp)))
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = stringResource(id = R.string.recording_audio),
-                color = Color.Red,
-                fontFamily = FontFamily(Font(R.font.opensans_regular))
-            )
-            Text(
-                text = stringResource(id = R.string.swipe_to_cancel),
-                fontSize = 12.sp,
-                color = Color.Red,
-                fontFamily = FontFamily(Font(R.font.opensans_regular))
-            )
-        }
 
         Spacer(modifier = Modifier.width(dimensionResource(id = R.dimen.spacing_10dp)))
 
         if (seconds < 10) {
             Text(
                 text = "0$minutes:0$seconds",
-                color = Color.Red,
-                fontFamily = FontFamily(Font(R.font.opensans_regular))
+                color = Color.Black,
+                fontFamily = FontFamily(Font(R.font.opensans_regular)),
+                fontSize = 16.sp
             )
         } else {
             Text(
                 text = "0$minutes:$seconds",
-                color = Color.Red,
+                color = Color.Black,
                 fontFamily = FontFamily(Font(R.font.opensans_regular))
             )
         }
+        Spacer(modifier = Modifier.width(dimensionResource(id = R.dimen.spacing_10dp)))
+        Icon(
+            imageVector = ImageVector.vectorResource(id = R.drawable.ic_recorder),
+            contentDescription = null,
+            modifier = Modifier.size(dimensionResource(id = R.dimen.spacing_80))
+        )
     }
 }
 
@@ -1188,4 +1214,186 @@ fun OnLifecycleEvent(onEvent: (owner: LifecycleOwner, event: Lifecycle.Event) ->
             lifecycle.removeObserver(observer)
         }
     }
+}
+
+@Composable
+fun AudioPreviewUI(context: Context, audioFile: File?, onClickDelete: () -> Unit, onClickSend: () -> Unit) {
+    var mediaPlayer: MediaPlayer? = null
+
+    if (audioFile != null) {
+        MediaPlayer.create(context, audioFile.toUri()).apply {
+            mediaPlayer = this
+        }
+    }
+
+    val handler = Handler()
+
+    var durationScale by remember {
+        mutableStateOf("00:00")
+    }
+
+    var isPlaying by remember {
+        mutableStateOf(false)
+    }
+    var seekBar by remember {
+        mutableStateOf(false)
+    }
+    var sliderPosition by remember { mutableStateOf(0f) }
+    var audioLength by remember { mutableStateOf(mediaPlayer?.duration?.div(1000) ?: 0) }
+
+    Row(modifier = Modifier.fillMaxWidth()) {
+        if (!isPlaying) {
+            Icon(
+                painter = painterResource(id = R.drawable.ic_play_circle),
+                contentDescription = "",
+                modifier = Modifier
+                    .size(dimensionResource(id = R.dimen.spacing_90))
+                    .clickable(onClick = {
+                        seekBar = true
+                        mediaPlayer?.start()
+                        object : Runnable {
+                            override fun run() {
+                                durationScale =
+                                    mediaPlayer?.getCurrentPositionInMmSs().toString()
+                                handler.postDelayed(this, 1000)
+                            }
+                        }.run()
+                        isPlaying = true
+                    })
+            )
+        } else {
+            Icon(
+                painter = painterResource(R.drawable.ic_pause_circle),
+                contentDescription = "",
+                modifier = Modifier
+                    .size(dimensionResource(id = R.dimen.spacing_90))
+                    .clickable(onClick = {
+                        mediaPlayer?.pause()
+                        isPlaying = false
+                    })
+            )
+        }
+        Spacer(modifier = Modifier.width(dimensionResource(id = R.dimen.spacing_20)))
+        Column(verticalArrangement = Arrangement.Center, modifier = Modifier
+            .width(170.dp)
+            .padding(vertical = dimensionResource(
+                id = R.dimen.spacing_10))) {
+            /*AudioSeekBar(mediaPlayer?.duration)*/
+            Column(verticalArrangement = Arrangement.Center, modifier = Modifier.width(170.dp)) {
+
+                Slider(
+                    value = sliderPosition,
+                    onValueChange = {  },
+                    valueRange = 0f..audioLength.toFloat(),
+                    colors = SliderDefaults.colors(
+                        thumbColor = colorResource(id = R.color.c_2ba6ff),
+                        activeTrackColor = Color.Black
+                    ),
+                    modifier = Modifier.height(20.dp)
+                )
+            }
+            if(seekBar) {
+                LaunchedEffect(Unit) {
+                    while (true) {
+                        if (sliderPosition < audioLength) {
+                            delay(1.seconds)
+                            sliderPosition++
+                        } else {
+                            break
+                        }
+                    }
+                }
+            }
+
+
+            Row {
+                Text(
+                    text = durationScale,
+                    fontFamily = FontFamily(Font(R.font.opensans_regular)),
+                    modifier = Modifier.weight(1f)
+                )
+                Text(text = mediaPlayer?.getDurationInMmSs() ?: "",
+                    fontFamily = FontFamily(Font(R.font.opensans_regular)))
+            }
+        }
+        Spacer(modifier = Modifier.width(dimensionResource(id = R.dimen.spacing_20)))
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(dimensionResource(id = R.dimen.spacing_90))
+                .clip(shape = CircleShape)
+                .background(color = colorResource(R.color.c_ff0404))
+                .clickable(onClick = {
+                    mediaPlayer?.stop()
+                    onClickDelete.invoke()
+                })
+        ) {
+            Image(
+                imageVector = ImageVector.vectorResource(R.drawable.ic_delete),
+                contentDescription = null,
+                modifier = Modifier
+                    .padding(dimensionResource(id = R.dimen.spacing_30)),
+            )
+        }
+        Spacer(modifier = Modifier.width(dimensionResource(id = R.dimen.spacing_10)))
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(dimensionResource(id = R.dimen.spacing_90))
+                .clip(shape = CircleShape)
+                .background(color = colorResource(R.color.c_2ba6ff))
+                .clickable(onClick = {
+                    mediaPlayer?.stop()
+                    onClickSend.invoke()
+                })
+        ) {
+            Image(
+                imageVector = ImageVector.vectorResource(R.drawable.ic_send),
+                contentDescription = null,
+                modifier = Modifier
+                    .padding(dimensionResource(id = R.dimen.spacing_30)),
+                colorFilter = ColorFilter.tint(Color.White)
+            )
+        }
+    }
+}
+@Composable
+fun AudioSeekBar(duration: Int?) {
+    var sliderPosition by remember { mutableStateOf(0f) }
+    val audioLength by remember { mutableStateOf(duration?.div(1000) ?: 0) }
+    Column(verticalArrangement = Arrangement.Center, modifier = Modifier.width(170.dp)) {
+        Slider(
+            value = sliderPosition,
+            onValueChange = { sliderPosition = it },
+            valueRange = 0f..audioLength.toFloat(),
+            colors = SliderDefaults.colors(
+                thumbColor = colorResource(id = R.color.c_2ba6ff),
+                activeTrackColor = Color.Black
+            ),
+            modifier = Modifier.height(20.dp)
+        )
+    }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            if (sliderPosition < audioLength) {
+                delay(1.seconds)
+                sliderPosition++
+            }else{
+                break
+            }
+        }
+    }
+}
+
+private fun buildRenderersFactory(
+    context: Context, preferExtensionRenderer: Boolean
+): RenderersFactory {
+    val extensionRendererMode = if (preferExtensionRenderer)
+        DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER
+    else DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON
+
+    return DefaultRenderersFactory(context.applicationContext)
+        .setExtensionRendererMode(extensionRendererMode)
+        .setEnableDecoderFallback(true)
 }

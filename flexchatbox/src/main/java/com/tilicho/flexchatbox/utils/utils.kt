@@ -13,6 +13,7 @@ import android.location.Criteria
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
+import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Build
 import android.os.CancellationSignal
@@ -258,4 +259,18 @@ fun getGrantedPermissions(context: Context): List<String> {
     } catch (_: Exception) {
     }
     return granted
+}
+
+fun MediaPlayer.getDurationInMmSs(): String {
+    return convertSecondsToMmSs(Math.round((this.duration / 1000).toDouble()))
+}
+
+fun MediaPlayer.getCurrentPositionInMmSs(): String {
+    return convertSecondsToMmSs(Math.round(((this.currentPosition / 1000)).toDouble()))
+}
+
+fun convertSecondsToMmSs(seconds: Long): String {
+    val s = seconds % 60
+    val m = seconds / 60 % 60
+    return String.format("%02d:%02d", m, s)
 }
