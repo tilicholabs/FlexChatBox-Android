@@ -81,6 +81,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -488,7 +489,7 @@ fun ChatBox(
             sendIconState = if (textFieldValue.isNotEmpty()) {
                 colorResource(R.color.c_2ba6ff)
             } else {
-                Color(0xFF808080)
+                colorResource(R.color.grey)
             }
             Row(
                 verticalAlignment = Alignment.Bottom, modifier = Modifier
@@ -602,8 +603,10 @@ fun ChatBox(
                                                             context.cacheDir,
                                                             "audio${System.currentTimeMillis()}.mp3"
                                                         ).also {
-                                                            File(context.cacheDir,
-                                                                "audio${System.currentTimeMillis()}.mp3").also {
+                                                            File(
+                                                                context.cacheDir,
+                                                                "audio${System.currentTimeMillis()}.mp3"
+                                                            ).also {
                                                                 Handler(Looper.getMainLooper()).postDelayed(
                                                                     {
                                                                         if (isPressed) {
@@ -731,6 +734,7 @@ fun DisplayContacts(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    .padding(horizontal = dimensionResource(id = R.dimen.spacing_10dp))
                     .padding(vertical = dimensionResource(id = R.dimen.spacing_10dp))
             ) {
                 Row(
@@ -743,7 +747,7 @@ fun DisplayContacts(
                         color = colorResource(id = R.color.c_2ba6ff),
                         text = stringResource(id = R.string.contacts),
                         textAlign = TextAlign.Center,
-                        fontSize = 20.sp,
+                        fontSize = 16.sp,
                         fontFamily = FontFamily(Font(R.font.opensans_regular))
                     )
                     Spacer(modifier = Modifier.weight(1f))
@@ -754,14 +758,16 @@ fun DisplayContacts(
                         }) {
                         Text(
                             text = stringResource(id = R.string.send),
+                            color = Color.White,
+                            fontSize = 16.sp,
                             fontFamily = FontFamily(Font(R.font.opensans_regular))
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_50)))
+                Divider(modifier = Modifier.padding(vertical = dimensionResource(id = R.dimen.spacing_20)))
 
-                LazyColumn(modifier = Modifier.padding(start = dimensionResource(id = R.dimen.spacing_10dp))) {
+                LazyColumn(modifier = Modifier) {
                     items(contacts.size) { index ->
                         Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_00)))
                         var isSelected by remember {
