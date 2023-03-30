@@ -36,6 +36,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Card
@@ -50,6 +51,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -296,10 +298,11 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun ChatUI(context: Context, chatData: List<ChatDataModel>) {
+    val lazyListState = rememberLazyListState()
     LazyColumn(
         horizontalAlignment = Alignment.End,
         verticalArrangement = Arrangement.Bottom,
-        modifier = Modifier
+        modifier = Modifier, state = lazyListState
     ) {
         for (chatItem in chatData) {
             if (chatItem.contacts?.sourceType == Sources.CONTACTS) {
@@ -359,6 +362,10 @@ fun ChatUI(context: Context, chatData: List<ChatDataModel>) {
                 }
             }
         }
+    }
+    LaunchedEffect(Unit) {
+        if (chatData.isNotEmpty())
+            lazyListState.scrollToItem(chatData.size - 1)
     }
 }
 

@@ -10,7 +10,6 @@ import android.net.Uri
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
-import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -99,13 +98,8 @@ import androidx.lifecycle.LifecycleOwner
 import coil.compose.rememberAsyncImagePainter
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberPermissionState
-import com.google.android.exoplayer2.DefaultRenderersFactory
 import com.google.android.exoplayer2.ExoPlayer
 import com.google.android.exoplayer2.MediaItem
-import com.google.android.exoplayer2.PlaybackException
-import com.google.android.exoplayer2.Player
-import com.google.android.exoplayer2.RenderersFactory
-import com.google.android.exoplayer2.trackselection.DefaultTrackSelector
 import com.google.android.exoplayer2.ui.StyledPlayerView
 import com.tilicho.flexchatbox.audiorecorder.AndroidAudioRecorder
 import com.tilicho.flexchatbox.enums.MediaType
@@ -132,7 +126,7 @@ import kotlinx.coroutines.delay
 import java.io.File
 import kotlin.time.Duration.Companion.seconds
 
-@OptIn(ExperimentalPermissionsApi::class, ExperimentalComposeUiApi::class)
+@OptIn(ExperimentalPermissionsApi::class)
 @SuppressLint("SuspiciousIndentation")
 @RequiresApi(Build.VERSION_CODES.Q)
 @Composable
@@ -557,77 +551,118 @@ fun ChatBox(
                             tint = sendIconState
                         )
                     }
+                    colorResource(R.color.grey)
+                }
+                Row(
+                    verticalAlignment = Alignment.Bottom, modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(4f)
+                        .clip(shape = RoundedCornerShape(dimensionResource(id = R.dimen.spacing_60)))
+                        .background(color = colorResource(id = R.color.c_edf0ee))
+                ) {
+                    TextField(
+                        value = textFieldValue,
+                        onValueChange = {
+                            textFieldValue = it
+                        },
+                        placeholder = {
+                            Text(
+                                text = stringResource(id = R.string.hint),
+                                color = colorResource(id = R.color.c_placeholder),
+                                fontSize = 18.sp
+                            )
+                        },
+                        colors = TextFieldDefaults.textFieldColors(
+                            backgroundColor = Color.Transparent,
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent,
+                        ),
+                        singleLine = false,
+                        maxLines = 4,
+                        modifier = Modifier.weight(6f),
+                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences)
+                    )
+                    IconButton(modifier = Modifier.weight(1.5f),
+                        onClick = {
+                            onClickSend.invoke(textFieldValue)
+                            textFieldValue = String.empty()
+                        }
+                    ) {
+                        Icon(
+                            imageVector = ImageVector.vectorResource(id = R.drawable.ic_send),
+                            contentDescription = null,
+                            tint = sendIconState
+                        )
+                    }
                 }
             }
-        }
 
-        Row(
-            modifier = Modifier
-                .padding(start = dimensionResource(id = R.dimen.spacing_20)),
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
+            Row(
+                modifier = Modifier
+                    .padding(start = dimensionResource(id = R.dimen.spacing_20)),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
 
-            if (true) {
-                when (source) {
-                    Sources.GALLERY -> {
-                        SourceImage(context = context,
-                            icon = R.drawable.ic_gallery,
-                            isDenied = isGalleryPermissionPermanentlyDenied,
-                            permission = Manifest.permission.READ_EXTERNAL_STORAGE,
-                            onClickIcon = {
-                                galleryPermissionState.launchPermissionRequest()
-                            })
-                    }
-
-                    Sources.LOCATION -> {
-                        SourceImage(context = context,
-                            icon = R.drawable.ic_location,
-                            isDenied = isLocationPermissionPermanentlyDenied,
-                            permission = Manifest.permission.ACCESS_FINE_LOCATION,
-                            onClickIcon = {
-                                locationPermissionState.launchPermissionRequest()
-                            })
-                    }
-
-                    Sources.VOICE -> {
-                        var iconState by remember {
-                            mutableStateOf(R.color.c_2ba6ff)
+                if (true) {
+                    when (source) {
+                        Sources.GALLERY -> {
+                            SourceImage(context = context,
+                                icon = R.drawable.ic_gallery,
+                                isDenied = isGalleryPermissionPermanentlyDenied,
+                                permission = Manifest.permission.READ_EXTERNAL_STORAGE,
+                                onClickIcon = {
+                                    galleryPermissionState.launchPermissionRequest()
+                                })
                         }
-                        if (!checkPermission(context, Manifest.permission.RECORD_AUDIO)) {
-                            if (isRecordAudioPermissionPermanentlyDenied) {
-                                iconState = R.color.c_ebeef1
+
+                        Sources.LOCATION -> {
+                            SourceImage(context = context,
+                                icon = R.drawable.ic_location,
+                                isDenied = isLocationPermissionPermanentlyDenied,
+                                permission = Manifest.permission.ACCESS_FINE_LOCATION,
+                                onClickIcon = {
+                                    locationPermissionState.launchPermissionRequest()
+                                })
+                        }
+
+                        Sources.VOICE -> {
+                            var iconState by remember {
+                                mutableStateOf(R.color.c_2ba6ff)
                             }
-                        } else {
-                            iconState = R.color.c_2ba6ff
-                        }
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier
-                                .clip(shape = CircleShape)
-                                .background(color = colorResource(id = iconState))
-                        ) {
-                            Image(
-                                imageVector = ImageVector.vectorResource(R.drawable.ic_mic),
-                                contentDescription = null,
+                            if (!checkPermission(context, Manifest.permission.RECORD_AUDIO)) {
+                                if (isRecordAudioPermissionPermanentlyDenied) {
+                                    iconState = R.color.c_ebeef1
+                                }
+                            } else {
+                                iconState = R.color.c_2ba6ff
+                            }
+                            Box(
+                                contentAlignment = Alignment.Center,
                                 modifier = Modifier
-                                    .padding(dimensionResource(id = R.dimen.spacing_30))
-                                    .pointerInput(Unit) {
-                                        detectTapGestures(
-                                            onPress = {
-                                                isPressed = true
-                                                if (checkPermission(
-                                                        context,
-                                                        Manifest.permission.RECORD_AUDIO
-                                                    )
-                                                ) {
-                                                    isRecordAudioPermissionPermanentlyDenied = false
-                                                    try {
-                                                        File(
-                                                            context.cacheDir,
-                                                            "audio${System.currentTimeMillis()}.mp3"
-                                                        ).also {
-                                                            File(context.cacheDir,
-                                                                "audio${System.currentTimeMillis()}.mp3").also {
+                                    .clip(shape = CircleShape)
+                                    .background(color = colorResource(id = iconState))
+                            ) {
+                                Image(
+                                    imageVector = ImageVector.vectorResource(R.drawable.ic_mic),
+                                    contentDescription = null,
+                                    modifier = Modifier
+                                        .padding(dimensionResource(id = R.dimen.spacing_30))
+                                        .pointerInput(Unit) {
+                                            detectTapGestures(
+                                                onPress = {
+                                                    isPressed = true
+                                                    if (checkPermission(
+                                                            context,
+                                                            Manifest.permission.RECORD_AUDIO
+                                                        )
+                                                    ) {
+                                                        isRecordAudioPermissionPermanentlyDenied =
+                                                            false
+                                                        try {
+                                                            File(
+                                                                context.cacheDir,
+                                                                "audio${System.currentTimeMillis()}.mp3"
+                                                            ).also {
                                                                 Handler(Looper.getMainLooper()).postDelayed(
                                                                     {
                                                                         if (isPressed) {
@@ -639,60 +674,60 @@ fun ChatBox(
                                                                 )
                                                             }
                                                             awaitRelease()
-                                                        }
-                                                    } finally {
-                                                        try {
-                                                            if (isRecording) {
-                                                                isPressed = false
-                                                                recorder.stop()
-                                                                isRecording = false
-                                                                showAudioPreview = true
-                                                                /*audioFile?.let {
+                                                        } finally {
+                                                            try {
+                                                                if (isRecording) {
+                                                                    isPressed = false
+                                                                    recorder.stop()
+                                                                    isRecording = false
+                                                                    showAudioPreview = true
+                                                                    /*audioFile?.let {
                                                                     recordedAudio.invoke(it)
                                                                 }*/
 
+                                                                }
+                                                            } catch (_: Exception) {
+                                                                // do nothing
                                                             }
-                                                        } catch (_: Exception) {
-                                                            // do nothing
                                                         }
+                                                    } else {
+                                                        recordAudioPermissionState.launchPermissionRequest()
                                                     }
-                                                } else {
-                                                    recordAudioPermissionState.launchPermissionRequest()
                                                 }
-                                            }
-                                        )
-                                    }
-                            )
+                                            )
+                                        }
+                                )
+                            }
                         }
-                    }
 
-                    Sources.CONTACTS -> {
-                        SourceImage(context = context,
-                            icon = R.drawable.ic_person,
-                            isDenied = isContactsPermissionPermanentlyDenied,
-                            Manifest.permission.READ_CONTACTS,
-                            onClickIcon = {
-                                contactsPermissionState.launchPermissionRequest()
-                            })
+                        Sources.CONTACTS -> {
+                            SourceImage(context = context,
+                                icon = R.drawable.ic_person,
+                                isDenied = isContactsPermissionPermanentlyDenied,
+                                Manifest.permission.READ_CONTACTS,
+                                onClickIcon = {
+                                    contactsPermissionState.launchPermissionRequest()
+                                })
+                        }
+                        Sources.FILES -> {
+                            SourceImage(context = context,
+                                icon = R.drawable.ic_file,
+                                isDenied = isFilesPermissionPermanentlyDenied,
+                                Manifest.permission.READ_EXTERNAL_STORAGE,
+                                onClickIcon = {
+                                    filesPermissionState.launchPermissionRequest()
+                                })
+                        }
+                        Sources.CAMERA -> {
+                            SourceImage(context = context,
+                                icon = R.drawable.ic_camera,
+                                isDenied = isCameraPermissionPermanentlyDenied,
+                                Manifest.permission.CAMERA, onClickIcon = {
+                                    cameraPermissionState.launchPermissionRequest()
+                                })
+                        }
+                        else -> {}
                     }
-                    Sources.FILES -> {
-                        SourceImage(context = context,
-                            icon = R.drawable.ic_file,
-                            isDenied = isFilesPermissionPermanentlyDenied,
-                            Manifest.permission.READ_EXTERNAL_STORAGE,
-                            onClickIcon = {
-                                filesPermissionState.launchPermissionRequest()
-                            })
-                    }
-                    Sources.CAMERA -> {
-                        SourceImage(context = context,
-                            icon = R.drawable.ic_camera,
-                            isDenied = isCameraPermissionPermanentlyDenied,
-                            Manifest.permission.CAMERA, onClickIcon = {
-                                cameraPermissionState.launchPermissionRequest()
-                            })
-                    }
-                    else -> {}
                 }
             }
         }
@@ -761,6 +796,7 @@ fun DisplayContacts(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    .padding(horizontal = dimensionResource(id = R.dimen.spacing_10dp))
                     .padding(vertical = dimensionResource(id = R.dimen.spacing_10dp))
             ) {
                 Row(
@@ -773,7 +809,7 @@ fun DisplayContacts(
                         color = colorResource(id = R.color.c_2ba6ff),
                         text = stringResource(id = R.string.contacts),
                         textAlign = TextAlign.Center,
-                        fontSize = 20.sp,
+                        fontSize = 16.sp,
                         fontFamily = FontFamily(Font(R.font.opensans_regular))
                     )
                     Spacer(modifier = Modifier.weight(1f))
@@ -784,14 +820,16 @@ fun DisplayContacts(
                         }) {
                         Text(
                             text = stringResource(id = R.string.send),
+                            color = Color.White,
+                            fontSize = 16.sp,
                             fontFamily = FontFamily(Font(R.font.opensans_regular))
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_50)))
+                Divider(modifier = Modifier.padding(vertical = dimensionResource(id = R.dimen.spacing_20)))
 
-                LazyColumn(modifier = Modifier.padding(start = dimensionResource(id = R.dimen.spacing_10dp))) {
+                LazyColumn(modifier = Modifier) {
                     items(contacts.size) { index ->
                         Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_00)))
                         var isSelected by remember {
@@ -1239,7 +1277,7 @@ fun AudioPreviewUI(context: Context, audioFile: File?, onClickDelete: () -> Unit
         mutableStateOf(false)
     }
     var sliderPosition by remember { mutableStateOf(0f) }
-    var audioLength by remember { mutableStateOf(mediaPlayer?.duration?.div(1000) ?: 0) }
+    val audioLength by remember { mutableStateOf(mediaPlayer?.duration?.div(1000) ?: 0) }
 
     Row(modifier = Modifier.fillMaxWidth()) {
         if (!isPlaying) {
@@ -1356,44 +1394,4 @@ fun AudioPreviewUI(context: Context, audioFile: File?, onClickDelete: () -> Unit
             )
         }
     }
-}
-@Composable
-fun AudioSeekBar(duration: Int?) {
-    var sliderPosition by remember { mutableStateOf(0f) }
-    val audioLength by remember { mutableStateOf(duration?.div(1000) ?: 0) }
-    Column(verticalArrangement = Arrangement.Center, modifier = Modifier.width(170.dp)) {
-        Slider(
-            value = sliderPosition,
-            onValueChange = { sliderPosition = it },
-            valueRange = 0f..audioLength.toFloat(),
-            colors = SliderDefaults.colors(
-                thumbColor = colorResource(id = R.color.c_2ba6ff),
-                activeTrackColor = Color.Black
-            ),
-            modifier = Modifier.height(20.dp)
-        )
-    }
-
-    LaunchedEffect(Unit) {
-        while (true) {
-            if (sliderPosition < audioLength) {
-                delay(1.seconds)
-                sliderPosition++
-            }else{
-                break
-            }
-        }
-    }
-}
-
-private fun buildRenderersFactory(
-    context: Context, preferExtensionRenderer: Boolean
-): RenderersFactory {
-    val extensionRendererMode = if (preferExtensionRenderer)
-        DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER
-    else DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON
-
-    return DefaultRenderersFactory(context.applicationContext)
-        .setExtensionRendererMode(extensionRendererMode)
-        .setEnableDecoderFallback(true)
 }
