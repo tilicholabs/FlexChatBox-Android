@@ -8,6 +8,7 @@ import android.graphics.Bitmap
 import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Build
+import android.os.CountDownTimer
 import android.os.Handler
 import android.os.Looper
 import android.widget.Toast
@@ -77,7 +78,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.dimensionResource
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.Font
@@ -85,7 +85,6 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
@@ -124,6 +123,7 @@ import com.tilicho.flexchatbox.utils.navigateToAppSettings
 import com.tilicho.flexchatbox.utils.openFiles
 import kotlinx.coroutines.delay
 import java.io.File
+import kotlin.math.roundToInt
 import kotlin.time.Duration.Companion.seconds
 
 @OptIn(ExperimentalPermissionsApi::class)
@@ -553,53 +553,13 @@ fun ChatBox(
                     }
                     colorResource(R.color.grey)
                 }
-                Row(
-                    verticalAlignment = Alignment.Bottom, modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(4f)
-                        .clip(shape = RoundedCornerShape(dimensionResource(id = R.dimen.spacing_60)))
-                        .background(color = colorResource(id = R.color.c_edf0ee))
-                ) {
-                    TextField(
-                        value = textFieldValue,
-                        onValueChange = {
-                            textFieldValue = it
-                        },
-                        placeholder = {
-                            Text(
-                                text = stringResource(id = R.string.hint),
-                                color = colorResource(id = R.color.c_placeholder),
-                                fontSize = 18.sp
-                            )
-                        },
-                        colors = TextFieldDefaults.textFieldColors(
-                            backgroundColor = Color.Transparent,
-                            focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent,
-                        ),
-                        singleLine = false,
-                        maxLines = 4,
-                        modifier = Modifier.weight(6f),
-                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences)
-                    )
-                    IconButton(modifier = Modifier.weight(1.5f),
-                        onClick = {
-                            onClickSend.invoke(textFieldValue)
-                            textFieldValue = String.empty()
-                        }
-                    ) {
-                        Icon(
-                            imageVector = ImageVector.vectorResource(id = R.drawable.ic_send),
-                            contentDescription = null,
-                            tint = sendIconState
-                        )
-                    }
-                }
             }
 
             Row(
                 modifier = Modifier
-                    .padding(start = dimensionResource(id = R.dimen.spacing_20)),
+                    .padding(start = dimensionResource(id = R.dimen.spacing_20), bottom = dimensionResource(
+                        id = R.dimen.spacing_00
+                    )),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
 
@@ -681,13 +641,8 @@ fun ChatBox(
                                                                     recorder.stop()
                                                                     isRecording = false
                                                                     showAudioPreview = true
-                                                                    /*audioFile?.let {
-                                                                    recordedAudio.invoke(it)
-                                                                }*/
-
                                                                 }
                                                             } catch (_: Exception) {
-                                                                // do nothing
                                                             }
                                                         }
                                                     } else {
@@ -909,19 +864,19 @@ fun AudioRecordingUi() {
     }
     Row(
         modifier = Modifier
-            .wrapContentWidth()
             .height(dimensionResource(id = R.dimen.spacing_90))
-            .padding(horizontal = dimensionResource(id = R.dimen.spacing_10dp))
-            .padding(top = dimensionResource(id = R.dimen.spacing_10dp), start = dimensionResource(
-                id = R.dimen.spacing_70)),
-        horizontalArrangement = Arrangement.Center,
+            .padding(
+                top = dimensionResource(id = R.dimen.spacing_10dp), start = dimensionResource(
+                    id = R.dimen.spacing_40
+                )
+            ),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             text = stringResource(id = R.string.recording_audio),
             color = Color.Black,
             fontFamily = FontFamily(Font(R.font.opensans_regular)),
-            fontSize = 16.sp
+            fontSize = 18.sp
         )
 
         Spacer(modifier = Modifier.width(dimensionResource(id = R.dimen.spacing_10dp)))
@@ -931,13 +886,14 @@ fun AudioRecordingUi() {
                 text = "0$minutes:0$seconds",
                 color = Color.Black,
                 fontFamily = FontFamily(Font(R.font.opensans_regular)),
-                fontSize = 16.sp
+                fontSize = 18.sp
             )
         } else {
             Text(
                 text = "0$minutes:$seconds",
                 color = Color.Black,
-                fontFamily = FontFamily(Font(R.font.opensans_regular))
+                fontFamily = FontFamily(Font(R.font.opensans_regular)),
+                fontSize = 18.sp
             )
         }
         Spacer(modifier = Modifier.width(dimensionResource(id = R.dimen.spacing_10dp)))
@@ -1255,143 +1211,171 @@ fun OnLifecycleEvent(onEvent: (owner: LifecycleOwner, event: Lifecycle.Event) ->
 }
 
 @Composable
-fun AudioPreviewUI(context: Context, audioFile: File?, onClickDelete: () -> Unit, onClickSend: () -> Unit) {
-    var mediaPlayer: MediaPlayer? = null
+fun AudioPreviewUI(
+    context: Context,
+    audioFile: File?,
+    onClickDelete: () -> Unit,
+    onClickSend: () -> Unit
+) {
+    var player: MediaPlayer? = null
 
     if (audioFile != null) {
         MediaPlayer.create(context, audioFile.toUri()).apply {
-            mediaPlayer = this
+            player = this
         }
     }
 
-    val handler = Handler()
+    Row(modifier = Modifier.fillMaxWidth()) {
+        ShowAudioSlider(player = player, onClickDelete = {
+            onClickDelete()
+        }, onClickSend = {
+            onClickSend()
+        })
+    }
+}
 
+@Composable
+fun ShowAudioSlider(player: MediaPlayer?, onClickDelete: () -> Unit, onClickSend: () -> Unit) {
+    val playing = remember {
+        mutableStateOf(false)
+    }
+    val position = remember {
+        mutableStateOf(0F)
+    }
     var durationScale by remember {
         mutableStateOf("00:00")
     }
 
-    var isPlaying by remember {
-        mutableStateOf(false)
-    }
-    var seekBar by remember {
-        mutableStateOf(false)
-    }
-    var sliderPosition by remember { mutableStateOf(0f) }
-    val audioLength by remember { mutableStateOf(mediaPlayer?.duration?.div(1000) ?: 0) }
-
-    Row(modifier = Modifier.fillMaxWidth()) {
-        if (!isPlaying) {
+    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceEvenly) {
+        if (player != null) {
             Icon(
-                painter = painterResource(id = R.drawable.ic_play_circle),
-                contentDescription = "",
+                imageVector = if (!playing.value) ImageVector.vectorResource(
+                    id = R.drawable.ic_play_circle
+                ) else ImageVector.vectorResource(
+                    id = R.drawable.ic_pause_circle
+                ),
+                contentDescription = "image",
                 modifier = Modifier
+                    .weight(1f)
                     .size(dimensionResource(id = R.dimen.spacing_90))
                     .clickable(onClick = {
-                        seekBar = true
-                        mediaPlayer?.start()
-                        object : Runnable {
-                            override fun run() {
-                                durationScale =
-                                    mediaPlayer?.getCurrentPositionInMmSs().toString()
-                                handler.postDelayed(this, 1000)
+                        if (player.isPlaying) {
+                            player.pause()
+                            playing.value = false
+                        } else {
+                            player.start()
+                            playing.value = true
+                        }
+
+                        object : CountDownTimer(player.duration.toLong(), 100) {
+
+                            override fun onTick(millisUntilFinished: Long) {
+                                durationScale = player.getCurrentPositionInMmSs()
+                                position.value = player.currentPosition.toFloat()
+                                if ((position.value / 1000).roundToInt() == (player.duration / 1000)
+                                        .toDouble()
+                                        .roundToInt()
+                                ) {
+                                    playing.value = false
+                                    position.value = 0F
+                                    durationScale = "00:00"
+                                }
                             }
-                        }.run()
-                        isPlaying = true
-                    })
-            )
-        } else {
-            Icon(
-                painter = painterResource(R.drawable.ic_pause_circle),
-                contentDescription = "",
-                modifier = Modifier
-                    .size(dimensionResource(id = R.dimen.spacing_90))
-                    .clickable(onClick = {
-                        mediaPlayer?.pause()
-                        isPlaying = false
-                    })
-            )
-        }
-        Spacer(modifier = Modifier.width(dimensionResource(id = R.dimen.spacing_20)))
-        Column(verticalArrangement = Arrangement.Center, modifier = Modifier
-            .width(170.dp)
-            .padding(vertical = dimensionResource(
-                id = R.dimen.spacing_10))) {
-            /*AudioSeekBar(mediaPlayer?.duration)*/
-            Column(verticalArrangement = Arrangement.Center, modifier = Modifier.width(170.dp)) {
 
+                            override fun onFinish() {
+                            }
+                        }.start()
+                    })
+            )
+            Column(verticalArrangement = Arrangement.Center, modifier = Modifier
+                .weight(3.5f)
+                .padding(top = dimensionResource(id = R.dimen.spacing_10))) {
                 Slider(
-                    value = sliderPosition,
-                    onValueChange = {  },
-                    valueRange = 0f..audioLength.toFloat(),
+                    value = position.value,
+                    valueRange = 0F..player.duration.toFloat(),
+                    onValueChange = {
+                        if ((position.value / 1000).roundToInt() == (player.duration / 1000)
+                                .toDouble()
+                                .roundToInt()
+                        ) {
+                            playing.value = false
+                            position.value = 0F
+                            durationScale = "00:00"
+                        }
+                        position.value = it
+                        player.seekTo(it.toInt())
+                    },
                     colors = SliderDefaults.colors(
                         thumbColor = colorResource(id = R.color.c_2ba6ff),
-                        activeTrackColor = Color.Black
+                        activeTrackColor = Color.Black,
+                        inactiveTrackColor = colorResource(
+                            id = R.color.c_placeholder
+                        )
                     ),
-                    modifier = Modifier.height(20.dp)
+                    modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_50))
                 )
-            }
-            if(seekBar) {
-                LaunchedEffect(Unit) {
-                    while (true) {
-                        if (sliderPosition < audioLength) {
-                            delay(1.seconds)
-                            sliderPosition++
-                        } else {
-                            break
-                        }
-                    }
+                Row {
+                    Text(
+                        text = durationScale,
+                        fontFamily = FontFamily(Font(R.font.opensans_regular)),
+                        modifier = Modifier.weight(1f),
+                        fontSize = 15.sp
+                    )
+                    Text(
+                        text = player.getDurationInMmSs(),
+                        fontFamily = FontFamily(Font(R.font.opensans_regular)),
+                        fontSize = 15.sp
+                    )
                 }
             }
+        }
 
-
-            Row {
-                Text(
-                    text = durationScale,
-                    fontFamily = FontFamily(Font(R.font.opensans_regular)),
-                    modifier = Modifier.weight(1f)
+        Spacer(modifier = Modifier.width(dimensionResource(id = R.dimen.spacing_20)))
+        Row(modifier = Modifier.weight(2f)) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(dimensionResource(id = R.dimen.spacing_90))
+                    .clip(shape = CircleShape)
+                    .background(color = colorResource(R.color.c_ff0404))
+                    .clickable(onClick = {
+                        player?.stop()
+                        onClickDelete.invoke()
+                    })
+            ) {
+                Image(
+                    imageVector = ImageVector.vectorResource(R.drawable.ic_delete),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .padding(dimensionResource(id = R.dimen.spacing_30)),
                 )
-                Text(text = mediaPlayer?.getDurationInMmSs() ?: "",
-                    fontFamily = FontFamily(Font(R.font.opensans_regular)))
+            }
+            Spacer(modifier = Modifier.width(dimensionResource(id = R.dimen.spacing_10)))
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(dimensionResource(id = R.dimen.spacing_90))
+                    .clip(shape = CircleShape)
+                    .background(color = colorResource(R.color.c_2ba6ff))
+                    .clickable(onClick = {
+                        player?.stop()
+                        onClickSend.invoke()
+                    })
+            ) {
+                Image(
+                    imageVector = ImageVector.vectorResource(R.drawable.ic_send),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .padding(dimensionResource(id = R.dimen.spacing_30)),
+                    colorFilter = ColorFilter.tint(Color.White)
+                )
             }
         }
-        Spacer(modifier = Modifier.width(dimensionResource(id = R.dimen.spacing_20)))
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier
-                .size(dimensionResource(id = R.dimen.spacing_90))
-                .clip(shape = CircleShape)
-                .background(color = colorResource(R.color.c_ff0404))
-                .clickable(onClick = {
-                    mediaPlayer?.stop()
-                    onClickDelete.invoke()
-                })
-        ) {
-            Image(
-                imageVector = ImageVector.vectorResource(R.drawable.ic_delete),
-                contentDescription = null,
-                modifier = Modifier
-                    .padding(dimensionResource(id = R.dimen.spacing_30)),
-            )
-        }
-        Spacer(modifier = Modifier.width(dimensionResource(id = R.dimen.spacing_10)))
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier
-                .size(dimensionResource(id = R.dimen.spacing_90))
-                .clip(shape = CircleShape)
-                .background(color = colorResource(R.color.c_2ba6ff))
-                .clickable(onClick = {
-                    mediaPlayer?.stop()
-                    onClickSend.invoke()
-                })
-        ) {
-            Image(
-                imageVector = ImageVector.vectorResource(R.drawable.ic_send),
-                contentDescription = null,
-                modifier = Modifier
-                    .padding(dimensionResource(id = R.dimen.spacing_30)),
-                colorFilter = ColorFilter.tint(Color.White)
-            )
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            player?.stop()
         }
     }
 }

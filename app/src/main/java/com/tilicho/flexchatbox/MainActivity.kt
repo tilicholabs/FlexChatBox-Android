@@ -299,6 +299,11 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun ChatUI(context: Context, chatData: List<ChatDataModel>) {
     val lazyListState = rememberLazyListState()
+    LaunchedEffect(chatData.size) {
+        if(chatData.isNotEmpty()){
+            lazyListState.animateScrollToItem(chatData.size-1)
+        }
+    }
     LazyColumn(
         horizontalAlignment = Alignment.End,
         verticalArrangement = Arrangement.Bottom,
@@ -362,10 +367,6 @@ fun ChatUI(context: Context, chatData: List<ChatDataModel>) {
                 }
             }
         }
-    }
-    LaunchedEffect(Unit) {
-        if (chatData.isNotEmpty())
-            lazyListState.scrollToItem(chatData.size - 1)
     }
 }
 
