@@ -21,6 +21,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -85,6 +86,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
@@ -99,6 +101,7 @@ import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberPermissionState
 import com.google.android.exoplayer2.ExoPlayer
 import com.google.android.exoplayer2.MediaItem
+import com.google.android.exoplayer2.ui.PlayerView
 import com.google.android.exoplayer2.ui.StyledPlayerView
 import com.tilicho.flexchatbox.audiorecorder.AndroidAudioRecorder
 import com.tilicho.flexchatbox.enums.MediaType
@@ -515,7 +518,11 @@ fun ChatBox(
                         .fillMaxWidth()
                         .weight(4f)
                         .clip(shape = RoundedCornerShape(dimensionResource(id = R.dimen.spacing_60)))
-                        .background(color = colorResource(id = R.color.c_edf0ee))
+                        .background(
+                            color = if (isSystemInDarkTheme()) Color.Black else colorResource(
+                                id = R.color.c_edf0ee
+                            )
+                        )
                 ) {
                     TextField(
                         value = textFieldValue,
@@ -636,8 +643,8 @@ fun ChatBox(
                                                             awaitRelease()
                                                         } finally {
                                                             try {
+                                                                isPressed = false
                                                                 if (isRecording) {
-                                                                    isPressed = false
                                                                     recorder.stop()
                                                                     isRecording = false
                                                                     showAudioPreview = true
@@ -874,7 +881,7 @@ fun AudioRecordingUi() {
     ) {
         Text(
             text = stringResource(id = R.string.recording_audio),
-            color = Color.Black,
+            color = if (isSystemInDarkTheme()) Color.White else Color.Black,
             fontFamily = FontFamily(Font(R.font.opensans_regular)),
             fontSize = 18.sp
         )
@@ -884,14 +891,14 @@ fun AudioRecordingUi() {
         if (seconds < 10) {
             Text(
                 text = "0$minutes:0$seconds",
-                color = Color.Black,
+                color = if (isSystemInDarkTheme()) Color.White else Color.Black,
                 fontFamily = FontFamily(Font(R.font.opensans_regular)),
                 fontSize = 18.sp
             )
         } else {
             Text(
                 text = "0$minutes:$seconds",
-                color = Color.Black,
+                color = if (isSystemInDarkTheme()) Color.White else Color.Black,
                 fontFamily = FontFamily(Font(R.font.opensans_regular)),
                 fontSize = 18.sp
             )
@@ -1123,7 +1130,9 @@ fun VideoView(context: Context, videoUri: String) {
         }
 
     DisposableEffect(
-        AndroidView(modifier = Modifier.height(dimensionResource(id = R.dimen.preview_image_height)),
+        AndroidView(modifier = Modifier
+            .height(dimensionResource(id = R.dimen.preview_image_height))
+            .fillMaxWidth(),
             factory = {
                 StyledPlayerView(context).apply {
                     player = exoPlayer
@@ -1246,7 +1255,7 @@ fun ShowAudioSlider(player: MediaPlayer?, onClickDelete: () -> Unit, onClickSend
         mutableStateOf("00:00")
     }
 
-    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceEvenly) {
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
         if (player != null) {
             Icon(
                 imageVector = if (!playing.value) ImageVector.vectorResource(
@@ -1286,91 +1295,91 @@ fun ShowAudioSlider(player: MediaPlayer?, onClickDelete: () -> Unit, onClickSend
                             }
                         }.start()
                     })
-            )
-            Column(verticalArrangement = Arrangement.Center, modifier = Modifier
-                .weight(3.5f)
-                .padding(top = dimensionResource(id = R.dimen.spacing_10))) {
-                Slider(
-                    value = position.value,
-                    valueRange = 0F..player.duration.toFloat(),
-                    onValueChange = {
-                        if ((position.value / 1000).roundToInt() == (player.duration / 1000)
-                                .toDouble()
-                                .roundToInt()
-                        ) {
-                            playing.value = false
-                            position.value = 0F
-                            durationScale = "00:00"
-                        }
-                        position.value = it
-                        player.seekTo(it.toInt())
-                    },
-                    colors = SliderDefaults.colors(
-                        thumbColor = colorResource(id = R.color.c_2ba6ff),
-                        activeTrackColor = Color.Black,
-                        inactiveTrackColor = colorResource(
-                            id = R.color.c_placeholder
-                        )
-                    ),
-                    modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_50))
                 )
-                Row {
-                    Text(
-                        text = durationScale,
-                        fontFamily = FontFamily(Font(R.font.opensans_regular)),
-                        modifier = Modifier.weight(1f),
-                        fontSize = 15.sp
+                Column(modifier = Modifier
+                    .weight(3.5f)
+                    .padding(top = dimensionResource(id = R.dimen.spacing_30))) {
+                    Slider(
+                        value = position.value,
+                        valueRange = 0F..player.duration.toFloat(),
+                        onValueChange = {
+                            if ((position.value / 1000).roundToInt() == (player.duration / 1000)
+                                    .toDouble()
+                                    .roundToInt()
+                            ) {
+                                playing.value = false
+                                position.value = 0F
+                                durationScale = "00:00"
+                            }
+                            position.value = it
+                            player.seekTo(it.toInt())
+                        },
+                        colors = SliderDefaults.colors(
+                            thumbColor = colorResource(id = R.color.c_2ba6ff),
+                            activeTrackColor = if (isSystemInDarkTheme()) colorResource(id = R.color.c_2ba6ff) else Color.Black,
+                            inactiveTrackColor = colorResource(
+                                id = R.color.c_placeholder
+                            )
+                        ),
+                        modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_60))
                     )
-                    Text(
-                        text = player.getDurationInMmSs(),
-                        fontFamily = FontFamily(Font(R.font.opensans_regular)),
-                        fontSize = 15.sp
+                    Row {
+                        Text(
+                            text = durationScale,
+                            fontFamily = FontFamily(Font(R.font.opensans_regular)),
+                            modifier = Modifier.weight(1f),
+                            fontSize = 15.sp
+                        )
+                        Text(
+                            text = player.getDurationInMmSs(),
+                            fontFamily = FontFamily(Font(R.font.opensans_regular)),
+                            fontSize = 15.sp
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.width(dimensionResource(id = R.dimen.spacing_20)))
+            Row(modifier = Modifier.weight(2f)) {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .size(dimensionResource(id = R.dimen.spacing_90))
+                        .clip(shape = CircleShape)
+                        .background(color = colorResource(R.color.c_ff0404))
+                        .clickable(onClick = {
+                            player?.stop()
+                            onClickDelete.invoke()
+                        })
+                ) {
+                    Image(
+                        imageVector = ImageVector.vectorResource(R.drawable.ic_delete),
+                        contentDescription = null,
+                        modifier = Modifier
+                            .padding(dimensionResource(id = R.dimen.spacing_30)),
+                    )
+                }
+                Spacer(modifier = Modifier.width(dimensionResource(id = R.dimen.spacing_10)))
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .size(dimensionResource(id = R.dimen.spacing_90))
+                        .clip(shape = CircleShape)
+                        .background(color = colorResource(R.color.c_2ba6ff))
+                        .clickable(onClick = {
+                            player?.stop()
+                            onClickSend.invoke()
+                        })
+                ) {
+                    Image(
+                        imageVector = ImageVector.vectorResource(R.drawable.ic_send),
+                        contentDescription = null,
+                        modifier = Modifier
+                            .padding(dimensionResource(id = R.dimen.spacing_30)),
+                        colorFilter = ColorFilter.tint(Color.White)
                     )
                 }
             }
-        }
-
-        Spacer(modifier = Modifier.width(dimensionResource(id = R.dimen.spacing_20)))
-        Row(modifier = Modifier.weight(2f)) {
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .size(dimensionResource(id = R.dimen.spacing_90))
-                    .clip(shape = CircleShape)
-                    .background(color = colorResource(R.color.c_ff0404))
-                    .clickable(onClick = {
-                        player?.stop()
-                        onClickDelete.invoke()
-                    })
-            ) {
-                Image(
-                    imageVector = ImageVector.vectorResource(R.drawable.ic_delete),
-                    contentDescription = null,
-                    modifier = Modifier
-                        .padding(dimensionResource(id = R.dimen.spacing_30)),
-                )
-            }
-            Spacer(modifier = Modifier.width(dimensionResource(id = R.dimen.spacing_10)))
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .size(dimensionResource(id = R.dimen.spacing_90))
-                    .clip(shape = CircleShape)
-                    .background(color = colorResource(R.color.c_2ba6ff))
-                    .clickable(onClick = {
-                        player?.stop()
-                        onClickSend.invoke()
-                    })
-            ) {
-                Image(
-                    imageVector = ImageVector.vectorResource(R.drawable.ic_send),
-                    contentDescription = null,
-                    modifier = Modifier
-                        .padding(dimensionResource(id = R.dimen.spacing_30)),
-                    colorFilter = ColorFilter.tint(Color.White)
-                )
-            }
-        }
     }
 
     DisposableEffect(Unit) {

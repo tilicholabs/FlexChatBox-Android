@@ -2,6 +2,7 @@ package com.tilicho.flexchatbox
 
 import android.annotation.SuppressLint
 import android.content.ContentResolver
+import com.google.accompanist.systemuicontroller.rememberSystemUiController
 import android.content.Context
 import android.content.res.AssetFileDescriptor
 import android.media.MediaPlayer
@@ -22,6 +23,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -51,6 +53,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -122,6 +125,7 @@ class MainActivity : ComponentActivity() {
             }
 
             FlexChatBoxTheme {
+                SetStatusBarColour()
                 Scaffold(topBar = {
                     Column(
                         modifier = Modifier
@@ -549,7 +553,8 @@ fun SetLocationItemCell(context: Context, location: Location?) {
             Spacer(modifier = Modifier.width(dimensionResource(id = R.dimen.spacing_50)))
             Text(
                 text = "${location?.location?.longitude},${location?.location?.latitude}",
-                fontFamily = FontFamily(Font(R.font.opensans_regular))
+                fontFamily = FontFamily(Font(R.font.opensans_regular)),
+                color = Color.Black
             )
         }
         Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_10)))
@@ -592,10 +597,10 @@ fun SetVoiceItemCell(context: Context, audioFile: File?) {
     Card(
         backgroundColor = ItemsBackground,
         shape = RoundedCornerShape(
-            dimensionResource(id = R.dimen.spacing_40),
-            dimensionResource(id = R.dimen.spacing_40),
-            0.dp,
-            dimensionResource(id = R.dimen.spacing_40)
+            topStart = dimensionResource(id = R.dimen.spacing_40),
+            topEnd = dimensionResource(id = R.dimen.spacing_40),
+            bottomEnd = 0.dp,
+            bottomStart = dimensionResource(id = R.dimen.spacing_40)
         )
     ) {
         Row(
@@ -824,7 +829,8 @@ fun SetChatTextCell(text: String) {
                 fontSize = 16.sp,
                 modifier = Modifier
                     .padding(dimensionResource(id = R.dimen.spacing_10dp)),
-                fontFamily = FontFamily(Font(R.font.opensans_regular))
+                fontFamily = FontFamily(Font(R.font.opensans_regular)),
+                color = Color.Black
             )
         }
         Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_10dp)))
@@ -849,7 +855,8 @@ fun SetChatTextCell(text: String) {
                 fontSize = 16.sp,
                 modifier = Modifier
                     .padding(dimensionResource(id = R.dimen.spacing_10dp)),
-                fontFamily = FontFamily(Font(R.font.opensans_regular))
+                fontFamily = FontFamily(Font(R.font.opensans_regular)),
+                color = Color.Black
             )
         }
         Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_10dp)))
@@ -936,5 +943,21 @@ fun DisplayFlexItems(
                 }),
             colorFilter = ColorFilter.tint(Color.Black)
         )
+    }
+}
+
+@Composable
+fun SetStatusBarColour() {
+    val systemUiController = rememberSystemUiController()
+    val useDarkIcons = !isSystemInDarkTheme()
+
+    DisposableEffect(systemUiController, useDarkIcons) {
+        systemUiController.setSystemBarsColor(
+            color = Color.Transparent,
+            darkIcons = useDarkIcons
+        )
+        systemUiController.setSystemBarsColor(Color.White)
+        systemUiController.setNavigationBarColor(Color.White)
+        onDispose {}
     }
 }
