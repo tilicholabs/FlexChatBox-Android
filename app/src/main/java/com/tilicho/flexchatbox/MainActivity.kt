@@ -948,16 +948,22 @@ fun DisplayFlexItems(
 
 @Composable
 fun SetStatusBarColour() {
+    var statusBarColour  by remember {
+        mutableStateOf(Color.Black)
+    }
     val systemUiController = rememberSystemUiController()
     val useDarkIcons = !isSystemInDarkTheme()
+    if(isSystemInDarkTheme()){
+        statusBarColour = Color.Black
+    }
 
     DisposableEffect(systemUiController, useDarkIcons) {
         systemUiController.setSystemBarsColor(
             color = Color.Transparent,
             darkIcons = useDarkIcons
         )
-        systemUiController.setSystemBarsColor(Color.White)
-        systemUiController.setNavigationBarColor(Color.White)
+        systemUiController.setSystemBarsColor(statusBarColour)
+        systemUiController.setNavigationBarColor(statusBarColour)
         onDispose {}
     }
 }
