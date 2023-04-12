@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace 'com.tilicho.flexchatbox'
+    namespace 'in.tilicho.flexchatbox'
     compileSdk 33
 
     defaultConfig {
-        applicationId "com.tilicho.flexchatbox"
+        applicationId "in.tilicho.flexchatbox"
         minSdk 24
         targetSdk 33
         versionCode 1
