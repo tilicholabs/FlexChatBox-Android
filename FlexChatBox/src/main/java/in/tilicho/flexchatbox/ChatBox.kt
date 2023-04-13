@@ -133,13 +133,13 @@ import kotlin.time.Duration.Companion.seconds
 fun ChatBox(
     context: Context,
     source: Sources,
-    selectedPhotosOrVideos: (List<Uri>) -> Unit,
-    recordedAudio: (File) -> Unit,
-    currentLocation: (Location?) -> Unit,
+    onGallerySelected: (List<Uri>) -> Unit,
+    onAudioRecordingSelected: (File) -> Unit,
+    onLocationSelected: (Location?) -> Unit,
     onClickSend: (String) -> Unit,
-    selectedContactsCallBack: (List<ContactData>) -> Unit,
-    selectedFiles: (List<Uri>) -> Unit,
-    camera: (Sources, Uri) -> Unit,
+    onContactsSelected: (List<ContactData>) -> Unit,
+    onFilesSelected: (List<Uri>) -> Unit,
+    onCameraSelected: (Sources, Uri) -> Unit,
 ) {
     var textFieldValue by rememberSaveable { mutableStateOf(String.empty()) }
 
@@ -181,7 +181,7 @@ fun ChatBox(
         DisplayContacts(contacts = contacts, selectedContactsCallBack = {
             displayContacts = false
             if (it.isNotEmpty()) {
-                selectedContactsCallBack.invoke(it)
+                onContactsSelected.invoke(it)
             }
         })
 
@@ -324,7 +324,7 @@ fun ChatBox(
                     onDismissCallback = { dismissDialog, setImages ->
                         showDialog = dismissDialog
                         if (setImages) {
-                            selectedPhotosOrVideos(galleryList ?: listOf())
+                            onGallerySelected(galleryList ?: listOf())
                         }
                     })
             }
@@ -337,11 +337,11 @@ fun ChatBox(
 
                 if (activityResult.data?.data != null) {
                     activityResult.data?.data?.let {
-                        camera(Sources.VIDEO, it)
+                        onCameraSelected(Sources.VIDEO, it)
                     }
                 } else {
                     getImageUri(context, activityResult.data?.extras?.get("data") as Bitmap)?.let {
-                        camera(Sources.CAMERA, it)
+                        onCameraSelected(Sources.CAMERA, it)
                     }
                 }
             }
@@ -359,14 +359,14 @@ fun ChatBox(
                             ?.let { (filesUriList.add(it)) }
                         currentItem += 1
                     }
-                    selectedFiles(filesUriList)
+                    onFilesSelected(filesUriList)
                 } else {
                     activityResult.data?.data.let {
                         if (it != null) {
                             filesUriList.add(it)
                         }
                     }
-                    selectedFiles(filesUriList)
+                    onFilesSelected(filesUriList)
                 }
             }
         }
@@ -428,7 +428,7 @@ fun ChatBox(
                         currLocation,
                         LOCATION_URL + latLong
                     )
-                    currentLocation(location)
+                    onLocationSelected(location)
                 }
             }
         }
@@ -496,7 +496,7 @@ fun ChatBox(
                     showAudioPreview = false
                 }, onClickSend = {
                     showAudioPreview = false
-                    audioFile?.let { recordedAudio(it) }
+                    audioFile?.let { onAudioRecordingSelected(it) }
                 })
         } else {
             if (isRecording) {
@@ -685,7 +685,14 @@ fun ChatBox(
                                     cameraPermissionState.launchPermissionRequest()
                                 })
                         }
-                        else -> {}
+                        Sources.VIDEO -> {
+                            SourceImage(context = context,
+                                icon = R.drawable.ic_camera,
+                                isDenied = isCameraPermissionPermanentlyDenied,
+                                Manifest.permission.CAMERA, onClickIcon = {
+                                    cameraPermissionState.launchPermissionRequest()
+                                })
+                        }
                     }
                 }
             }

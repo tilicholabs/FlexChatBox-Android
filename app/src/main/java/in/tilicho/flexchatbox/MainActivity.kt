@@ -212,13 +212,13 @@ class MainActivity : ComponentActivity() {
                         ChatBox(
                             context = context,
                             source = selectedFlex,
-                            selectedPhotosOrVideos = {
+                            onGallerySelected = {
                                 val currData =
                                     mutableListOf(ChatDataModel(galleryItems = GalleryItems(uris = it.toMutableList())))
                                 chatData?.let { it1 -> currData.addAll(0, it1) }
                                 chatData = currData
                             },
-                            recordedAudio = {
+                            onAudioRecordingSelected = {
                                 val currData =
                                     mutableListOf(ChatDataModel(voice = Voice(file = it))).toMutableList()
                                 chatData?.let { it1 -> currData.addAll(currData.size - 1, it1) }
@@ -239,7 +239,7 @@ class MainActivity : ComponentActivity() {
                                     }
                                 }
                             },
-                            currentLocation = {
+                            onLocationSelected = {
                                 it.let {
                                     val currData =
                                         mutableListOf(
@@ -251,19 +251,19 @@ class MainActivity : ComponentActivity() {
                                     chatData = currData
                                 }
                             },
-                            selectedContactsCallBack = {
+                            onContactsSelected = {
                                 val currData =
                                     mutableListOf(ChatDataModel(contacts = Contacts(contacts = it.toMutableList())))
                                 chatData?.let { it1 -> currData.addAll(0, it1) }
                                 chatData = currData
                             },
-                            selectedFiles = {
+                            onFilesSelected = {
                                 val currData =
                                     mutableListOf(ChatDataModel(file = FileItems(files = it.toMutableList())))
                                 chatData?.let { it1 -> currData.addAll(0, it1) }
                                 chatData = currData
                             },
-                            camera = { _source, uri ->
+                            onCameraSelected = { _source, uri ->
                                 source = _source
                                 chatData = if (_source == Sources.CAMERA) {
                                     val currData =

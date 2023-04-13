@@ -15,30 +15,27 @@ In your module `build.gradle`, add
 
 ## Usage(</>)
 
+The ChatBox function accepts following enum.
+
+enum class Sources {
+    GALLERY,
+    VOICE,
+    LOCATION,
+    CONTACTS,
+    FILES,
+    CAMERA,
+    VIDEO
+}
+
+The developer can expect the callback only for the source passed to the composable function.
+For example, if the source is passed as Sources.CAMERA then only the response can get in the camera callback and the remaining callbacks are null.
+
 ```
     ChatBox(
             context = context,
-            source = selectedFlex,
-            selectedPhotosOrVideos = {
-                /* Selected photos or videos callback */
-            },
-            recordedAudio = {
-                /* recorded audio callback */
-            },
-            onClickSend = { 
-                /* Chat text callback */
-            },
-            currentLocation = {
-                /* current location callback */
-            },
-            selectedContacts = {
-                /* selected contacts callback */
-            },
-            selectedFiles = {
-                /* selected files callback */
-            },
-            camera = {
-                /* captured image or video callback */
+            source = Sources.CAMERA,
+            onCameraSelected = {
+                /* captured image or video Uri*/
             }
         )
 ```
