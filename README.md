@@ -1,17 +1,13 @@
 # FlexChatBox Android
 
-## What It Is
+## About the SDK
 
-`Flexchatbox` is an Android SDK developed with the intention to reduce the effort for the developers
-to build the chat functionality in their applications. The developers can simply integrate this SDK
-into their applications and use the features provided such as sending text messages and also sharing
-the media such as gallery, captured photos and videos and sharing the current location and mobile
-contacts and voice recording clips and all types of files from the file manager.
+`Flexchatbox` is an Android SDK developed with the intention to reduce the effort for the developers to build the chat functionality in their applications. The developers can simply integrate this SDK into any new or existing applications and use a host of features that are provided such as sending text messages and also sharing media content such as Images from device Gallery, capturing photos and videos, sharing current location, mobile contacts and voice recording clips and any other files types using the File Manager.
 
 ## Importing the Library
 
-On your root `build.gradle`, add `mavenCentral()` to the `allprojects` section.
-On your module `build.gradle`, add
+In your root `build.gradle`, add `mavenCentral()` to the `allprojects` section.
+In your module `build.gradle`, add
 
     dependencies {
         implementation 'in.tilicho.android:flexchatbox:1.0.0'
@@ -49,15 +45,16 @@ On your module `build.gradle`, add
 
 ## Developer instructions
 
-- From this SDK the developer can integrate only one type of media item at a time.
+- Currently while using this SDK the developer will be able to integrate only one type of media item at a time.
 - The developer can place the SDK UI item anywhere on the screen.
 
 ## Features
 
 The feature set includes:
 
-- Can get text messages and integrated type of media message from the SDK. We have integrated
+- The host app will get text messages and integrated type of media message from the SDK. We have integrated
   different types of media messages which are required to chat conversation.
+  
   ### `Media message types:`
     - `TextField`
         - The user can send a text message single line or multiple lines
