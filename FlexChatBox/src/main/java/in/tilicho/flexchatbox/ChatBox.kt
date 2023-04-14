@@ -133,13 +133,13 @@ import kotlin.time.Duration.Companion.seconds
 fun ChatBox(
     context: Context,
     source: Sources,
-    onGallerySelected: (List<Uri>) -> Unit,
-    onAudioRecordingSelected: (File) -> Unit,
-    onLocationSelected: (Location?) -> Unit,
-    onClickSend: (String) -> Unit,
-    onContactsSelected: (List<ContactData>) -> Unit,
-    onFilesSelected: (List<Uri>) -> Unit,
-    onCameraSelected: (Sources, Uri) -> Unit,
+    onGallerySelected: ((List<Uri>) -> Unit)? = null,
+    onAudioRecordingSelected: ((File) -> Unit)? = null,
+    onLocationSelected: ((Location?) -> Unit)? = null,
+    onClickSend: ((String) -> Unit)? = null,
+    onContactsSelected: ((List<ContactData>) -> Unit)? = null,
+    onFilesSelected: ((List<Uri>) -> Unit)? = null,
+    onCameraSelected: ((Sources, Uri) -> Unit)? = null,
 ) {
     var textFieldValue by rememberSaveable { mutableStateOf(String.empty()) }
 
@@ -181,7 +181,15 @@ fun ChatBox(
         DisplayContacts(contacts = contacts, selectedContactsCallBack = {
             displayContacts = false
             if (it.isNotEmpty()) {
-                onContactsSelected.invoke(it)
+                if (onContactsSelected == null) {
+                    Toast.makeText(
+                        context,
+                        "onContactsSelected should be implemented",
+                        Toast.LENGTH_LONG
+                    ).show()
+                } else {
+                    onContactsSelected.invoke(it)
+                }
             }
         })
 
@@ -324,7 +332,15 @@ fun ChatBox(
                     onDismissCallback = { dismissDialog, setImages ->
                         showDialog = dismissDialog
                         if (setImages) {
-                            onGallerySelected(galleryList ?: listOf())
+                            if (onGallerySelected == null) {
+                                Toast.makeText(
+                                    context,
+                                    "onGallerySelected should be implemented",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            } else {
+                                onGallerySelected.invoke(galleryList ?: listOf())
+                            }
                         }
                     })
             }
@@ -337,11 +353,27 @@ fun ChatBox(
 
                 if (activityResult.data?.data != null) {
                     activityResult.data?.data?.let {
-                        onCameraSelected(Sources.VIDEO, it)
+                        if (onCameraSelected == null) {
+                            Toast.makeText(
+                                context,
+                                "onCameraSelected should be implemented",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        } else {
+                            onCameraSelected.invoke(Sources.VIDEO, it)
+                        }
                     }
                 } else {
                     getImageUri(context, activityResult.data?.extras?.get("data") as Bitmap)?.let {
-                        onCameraSelected(Sources.CAMERA, it)
+                        if (onCameraSelected == null) {
+                            Toast.makeText(
+                                context,
+                                "onCameraSelected should be implemented",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        } else {
+                            onCameraSelected.invoke(Sources.CAMERA, it)
+                        }
                     }
                 }
             }
@@ -359,14 +391,30 @@ fun ChatBox(
                             ?.let { (filesUriList.add(it)) }
                         currentItem += 1
                     }
-                    onFilesSelected(filesUriList)
+                    if (onFilesSelected == null) {
+                        Toast.makeText(
+                            context,
+                            "onFilesSelected should be implemented",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    } else {
+                        onFilesSelected.invoke(filesUriList)
+                    }
                 } else {
                     activityResult.data?.data.let {
                         if (it != null) {
                             filesUriList.add(it)
                         }
                     }
-                    onFilesSelected(filesUriList)
+                    if (onFilesSelected == null) {
+                        Toast.makeText(
+                            context,
+                            "onFilesSelected should be implemented",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    } else {
+                        onFilesSelected.invoke(filesUriList)
+                    }
                 }
             }
         }
@@ -428,7 +476,11 @@ fun ChatBox(
                         currLocation,
                         LOCATION_URL + latLong
                     )
-                    onLocationSelected(location)
+                    if(onLocationSelected == null){
+                        Toast.makeText(context, "onLocationSelected should be implemented", Toast.LENGTH_LONG).show()
+                    }else{
+                        onLocationSelected.invoke(location)
+                    }
                 }
             }
         }
@@ -496,7 +548,15 @@ fun ChatBox(
                     showAudioPreview = false
                 }, onClickSend = {
                     showAudioPreview = false
-                    audioFile?.let { onAudioRecordingSelected(it) }
+                    if (onFilesSelected == null) {
+                        Toast.makeText(
+                            context,
+                            "onAudioRecordingSelected should be implemented",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    } else {
+                        audioFile?.let { onAudioRecordingSelected?.invoke(it) }
+                    }
                 })
         } else {
             if (isRecording) {
@@ -545,7 +605,15 @@ fun ChatBox(
                     )
                     IconButton(modifier = Modifier.weight(1.5f),
                         onClick = {
-                            onClickSend.invoke(textFieldValue)
+                            if (onClickSend == null) {
+                                Toast.makeText(
+                                    context,
+                                    "onClickSend should be implemented",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            } else {
+                                onClickSend.invoke(textFieldValue)
+                            }
                             textFieldValue = String.empty()
                         }
                     ) {
@@ -612,48 +680,45 @@ fun ChatBox(
                                     modifier = Modifier
                                         .padding(dimensionResource(id = R.dimen.spacing_30))
                                         .pointerInput(Unit) {
-                                            detectTapGestures(
-                                                onPress = {
-                                                    isPressed = true
-                                                    if (checkPermission(
-                                                            context,
-                                                            Manifest.permission.RECORD_AUDIO
-                                                        )
-                                                    ) {
-                                                        isRecordAudioPermissionPermanentlyDenied =
-                                                            false
-                                                        try {
-                                                            File(
-                                                                context.cacheDir,
-                                                                "audio${System.currentTimeMillis()}.mp3"
-                                                            ).also {
-                                                                Handler(Looper.getMainLooper()).postDelayed(
-                                                                    {
-                                                                        if (isPressed) {
-                                                                            isRecording = true
-                                                                            recorder.start(it)
-                                                                            audioFile = it
-                                                                        }
-                                                                    }, 200
-                                                                )
-                                                            }
-                                                            awaitRelease()
-                                                        } finally {
-                                                            try {
-                                                                isPressed = false
-                                                                if (isRecording) {
-                                                                    recorder.stop()
-                                                                    isRecording = false
-                                                                    showAudioPreview = true
-                                                                }
-                                                            } catch (_: Exception) {
-                                                            }
+                                            detectTapGestures(onPress = {
+                                                isPressed = true
+                                                if (checkPermission(
+                                                        context,
+                                                        Manifest.permission.RECORD_AUDIO
+                                                    )
+                                                ) {
+                                                    isRecordAudioPermissionPermanentlyDenied = false
+                                                    try {
+                                                        File(
+                                                            context.cacheDir,
+                                                            "audio${System.currentTimeMillis()}.mp3"
+                                                        ).also {
+                                                            Handler(Looper.getMainLooper()).postDelayed(
+                                                                {
+                                                                    if (isPressed) {
+                                                                        isRecording = true
+                                                                        recorder.start(it)
+                                                                        audioFile = it
+                                                                    }
+                                                                }, 200
+                                                            )
                                                         }
-                                                    } else {
-                                                        recordAudioPermissionState.launchPermissionRequest()
+                                                        awaitRelease()
+                                                    } finally {
+                                                        try {
+                                                            isPressed = false
+                                                            if (isRecording) {
+                                                                recorder.stop()
+                                                                isRecording = false
+                                                                showAudioPreview = true
+                                                            }
+                                                        } catch (_: Exception) {
+                                                        }
                                                     }
+                                                } else {
+                                                    recordAudioPermissionState.launchPermissionRequest()
                                                 }
-                                            )
+                                            })
                                         }
                                 )
                             }
@@ -848,10 +913,6 @@ fun DisplayContacts(
                         }
                         Divider()
                     }
-                }
-
-                Button(onClick = { /*TODO*/ }) {
-                    Text(text = "Click me!")
                 }
             }
         }
