@@ -15,8 +15,10 @@ In your module `build.gradle`, add
 
 ## Usage(</>)
 
-The ChatBox function accepts following enum.
+The ChatBox function accepts following enum types.
 
+
+```
 enum class Sources {
     GALLERY,
     VOICE,
@@ -26,9 +28,9 @@ enum class Sources {
     CAMERA,
     VIDEO
 }
+```
 
-The developer can expect the callback only for the source passed to the composable function.
-For example, if the source is passed as Sources.CAMERA then only the response can get in the camera callback and the remaining callbacks are null.
+The developer needs to pass the relevant callback for the selected Source that is passed to the composable function. For example, if the selected source is Sources.CAMERA then onCameraSelected callback must be implemented. If this is not implemented then the SDK will not be able to return the media from the SDK to the host app.
 
 ```
     ChatBox(
@@ -36,9 +38,25 @@ For example, if the source is passed as Sources.CAMERA then only the response ca
             source = Sources.CAMERA,
             onCameraSelected = {
                 /* captured image or video Uri*/
-            }
+            },
+            onClickSend = {
+                /* text message*/
+            },
         )
 ```
+Please use the following Source-Callback mapping based on your selected Source.
+
+```
+    Source.GALLERY -> onGallerySelected
+    Source.VOICE -> onAudioRecordingSelected
+    Source.LOCATION -> onLocationSelected
+    Source.CONTACTS -> onContactsSelected
+    Source.FILES -> onFilesSelected
+    Source.CAMERA -> onCameraSelected
+    Source.VIDEO -> onCameraSelected
+```
+
+
 
 ## Developer instructions
 
