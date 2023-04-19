@@ -1,11 +1,10 @@
 package `in`.tilicho.flexchatbox.enums
 
-enum class Sources {
+enum class FlexType {
     GALLERY,
     VOICE,
     LOCATION,
     CONTACTS,
     FILES,
-    CAMERA,
-    VIDEO
+    CAMERA
 }

@@ -2,14 +2,13 @@ package `in`.tilicho.flexchatbox.uimodel
 
 import android.net.Uri
 import `in`.tilicho.flexchatbox.Location
-import `in`.tilicho.flexchatbox.enums.Sources
+import `in`.tilicho.flexchatbox.enums.FlexType
 import `in`.tilicho.flexchatbox.utils.ContactData
 import java.io.File
 
 
 data class ChatDataModel(
     val camera: Camera? = null,
-    val video: Video? = null,
     val voice: Voice? = null,
     val location: LocationItem? = null,
     val galleryItems: GalleryItems? = null,
@@ -20,37 +19,32 @@ data class ChatDataModel(
 
 data class Camera(
     val uri: Uri? = null,
-    val sourceType: Sources = Sources.CAMERA
-)
-
-data class Video(
-    val uri: Uri? = null,
-    val sourceType: Sources = Sources.VIDEO
+    val sourceType: FlexType = FlexType.CAMERA
 )
 
 data class Voice(
     val file: File? = null,
-    val sourceType: Sources = Sources.VOICE
+    val sourceType: FlexType = FlexType.VOICE
 )
 
 data class LocationItem(
     val location: Location? = null,
-    val sourceType: Sources = Sources.LOCATION
+    val sourceType: FlexType = FlexType.LOCATION
 )
 
 data class GalleryItems(
     val uris: List<Uri>? = null,
-    val sourceType: Sources = Sources.GALLERY
+    val sourceType: FlexType = FlexType.GALLERY
 )
 
 data class FileItems(
     val files: List<Uri>? = null,
-    val sourceType: Sources = Sources.FILES
+    val sourceType: FlexType = FlexType.FILES
 )
 
 data class Contacts(
     val contacts: List<ContactData>? = null,
-    val sourceType: Sources = Sources.CONTACTS
+    val sourceType: FlexType = FlexType.CONTACTS
 )
 
 

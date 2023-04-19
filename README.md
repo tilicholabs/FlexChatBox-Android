@@ -1,8 +1,38 @@
 # FlexChatBox Android
 
+FlexChatBox SDK made with Jetpack compose.
+
+## Getting Started
+This project was created using Jetpack Compose to render @Composable function components.
+
+- To get started developing for Android, please checkout the [official documentation](https://developer.android.com/)
+- Also checkout the [Jetpack Compose Tutorial](https://developer.android.com/jetpack/compose/tutorial) to start building awsome apps using declarative UIs.
+
 ## About the SDK
 
 `Flexchatbox` is an Android SDK developed with the intention to reduce the effort for the developers to build the chat functionality in their applications. The developers can simply integrate this SDK into any new or existing applications and use a host of features that are provided such as sending text messages and also sharing media content such as Images from device Gallery, capturing photos and videos, sharing current location, mobile contacts and voice recording clips and any other files types using the File Manager.
+
+## Repo contents
+- This repo contains the source for the SDK and demo app to help integrate the SDK easily
+- Demo app module can be used as-is if your requirement exactly fits
+
+## Android Studio version
+```
+Electric Eel or higher
+```
+
+## Gradle versions
+```
+minSdk 24
+targetSdk 33
+compileSdk 33
+
+Gradle version 7.5
+```
+## Compose versions
+```
+compose_ui_version = '1.2.0'
+```
 
 ## Importing the Library
 
@@ -19,57 +49,66 @@ The ChatBox function accepts following enum types.
 
 
 ```
-enum class Sources {
+enum class FlexType {
     GALLERY,
     VOICE,
     LOCATION,
     CONTACTS,
     FILES,
-    CAMERA,
-    VIDEO
+    CAMERA
 }
 ```
-
-The developer needs to pass the relevant callback for the selected Source that is passed to the composable function. For example, if the selected source is Sources.CAMERA then onCameraSelected callback must be implemented. If this is not implemented then the SDK will not be able to return the media from the SDK to the host app.
-
-```
-    ChatBox(
-            context = context,
-            source = Sources.CAMERA,
-            onCameraSelected = {
-                /* captured image or video Uri*/
-            },
-            onClickSend = {
-                /* text message*/
-            },
-        )
-```
-Please use the following Source-Callback mapping based on your selected Source.
+Initialising the SDK
 
 ```
-    Source.GALLERY -> onGallerySelected
-    Source.VOICE -> onAudioRecordingSelected
-    Source.LOCATION -> onLocationSelected
-    Source.CONTACTS -> onContactsSelected
-    Source.FILES -> onFilesSelected
-    Source.CAMERA -> onCameraSelected
-    Source.VIDEO -> onCameraSelected
+    FlexChatBox(
+        context = context,
+        flexType = FlexType.Camera,
+        textFieldPlaceHolder = "Type your text here",
+        flexCallback = { callback -> 
+            when(callback) {
+                is Callback.Camera -> {
+                    // Access the uri from callback in the following way
+                    val uri = callback.uri
+                }
+            }
+        },
+        onClickSend = {
+            // Access the text entered in the textField.
+        }
+    )
 ```
+Please use the following checks in the when condition for the different Flex types
 
-
+```
+    is Callback.Files -> {
+        //Access the list of uris from this callback
+    }
+    is Callback.Gallery -> {
+        //Access the list of uris from this callback
+    }
+    is Callback.Voice -> {
+        //Access the audio recorded file from this callback
+    }
+    is Callback.contacts -> {
+        //Access the list of contacts from this callback
+    }
+    is Callback.Location -> {
+        //Access the location object from this callback
+    }
+```
 
 ## Developer instructions
 
 - Currently while using this SDK the developer will be able to integrate only one type of media item at a time.
 - The developer can place the SDK UI item anywhere on the screen.
-
-## Features
+## Demo-App Features
 
 The feature set includes:
 
 - The host app will get text messages and integrated type of media message from the SDK. We have integrated
   different types of media messages which are required to chat conversation.
-  
+
   ### `Media message types:`
     - `TextField`
         - The user can send a text message single line or multiple lines
@@ -110,6 +149,12 @@ The feature set includes:
         - The user can expect the list of Uri's of the selected files from the file manager of the
           device.
         - ![files](https://user-images.githubusercontent.com/113417724/231709421-a552e8a3-c707-4fc4-9713-06b7b11e42b1.gif)
+
+
+## Roadmap :
+
+- Multi Media Support : Currently we only support one media type to be shared from the SDK to the host app. This needs to be defined at the time of SDK initialisation itself. With this feature, developers can just select source type as Multi and the users will be prompted in the app which type of media they would like to share.
+- Custom UI : With this feature we allow the developers to customise the ChatBox UI to a great extent. Currently we support only colour customisation.
 
 ## Licence
 

@@ -101,8 +101,8 @@ import com.google.android.exoplayer2.ExoPlayer
 import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.ui.StyledPlayerView
 import `in`.tilicho.flexchatbox.audiorecorder.AndroidAudioRecorder
+import `in`.tilicho.flexchatbox.enums.FlexType
 import `in`.tilicho.flexchatbox.enums.MediaType
-import `in`.tilicho.flexchatbox.enums.Sources
 import `in`.tilicho.flexchatbox.utils.ContactData
 import `in`.tilicho.flexchatbox.utils.GALLERY_INPUT_TYPE
 import `in`.tilicho.flexchatbox.utils.GetMediaActivityResultContract
@@ -130,16 +130,12 @@ import kotlin.time.Duration.Companion.seconds
 @SuppressLint("SuspiciousIndentation")
 @RequiresApi(Build.VERSION_CODES.Q)
 @Composable
-fun ChatBox(
+fun FlexChatBox(
     context: Context,
-    source: Sources,
-    onGallerySelected: ((List<Uri>) -> Unit)? = null,
-    onAudioRecordingSelected: ((File) -> Unit)? = null,
-    onLocationSelected: ((Location?) -> Unit)? = null,
+    flexType: FlexType,
+    textFieldPlaceHolder: String = stringResource(id = R.string.hint),
+    flexCallback: (Callback) -> Unit,
     onClickSend: ((String) -> Unit)? = null,
-    onContactsSelected: ((List<ContactData>) -> Unit)? = null,
-    onFilesSelected: ((List<Uri>) -> Unit)? = null,
-    onCameraSelected: ((Sources, Uri) -> Unit)? = null,
 ) {
     var textFieldValue by rememberSaveable { mutableStateOf(String.empty()) }
 
@@ -181,15 +177,7 @@ fun ChatBox(
         DisplayContacts(contacts = contacts, selectedContactsCallBack = {
             displayContacts = false
             if (it.isNotEmpty()) {
-                if (onContactsSelected == null) {
-                    Toast.makeText(
-                        context,
-                        "onContactsSelected should be implemented",
-                        Toast.LENGTH_LONG
-                    ).show()
-                } else {
-                    onContactsSelected.invoke(it)
-                }
+                flexCallback.invoke(Callback.Contacts(it))
             }
         })
 
@@ -332,15 +320,7 @@ fun ChatBox(
                     onDismissCallback = { dismissDialog, setImages ->
                         showDialog = dismissDialog
                         if (setImages) {
-                            if (onGallerySelected == null) {
-                                Toast.makeText(
-                                    context,
-                                    "onGallerySelected should be implemented",
-                                    Toast.LENGTH_LONG
-                                ).show()
-                            } else {
-                                onGallerySelected.invoke(galleryList ?: listOf())
-                            }
+                            flexCallback.invoke(Callback.Gallery(galleryList ?: listOf()))
                         }
                     })
             }
@@ -353,27 +333,13 @@ fun ChatBox(
 
                 if (activityResult.data?.data != null) {
                     activityResult.data?.data?.let {
-                        if (onCameraSelected == null) {
-                            Toast.makeText(
-                                context,
-                                "onCameraSelected should be implemented",
-                                Toast.LENGTH_LONG
-                            ).show()
-                        } else {
-                            onCameraSelected.invoke(Sources.VIDEO, it)
-                        }
+                        flexCallback.invoke(
+                            Callback.Camera(it)
+                        )
                     }
                 } else {
                     getImageUri(context, activityResult.data?.extras?.get("data") as Bitmap)?.let {
-                        if (onCameraSelected == null) {
-                            Toast.makeText(
-                                context,
-                                "onCameraSelected should be implemented",
-                                Toast.LENGTH_LONG
-                            ).show()
-                        } else {
-                            onCameraSelected.invoke(Sources.CAMERA, it)
-                        }
+                        flexCallback.invoke(Callback.Camera(it))
                     }
                 }
             }
@@ -391,30 +357,14 @@ fun ChatBox(
                             ?.let { (filesUriList.add(it)) }
                         currentItem += 1
                     }
-                    if (onFilesSelected == null) {
-                        Toast.makeText(
-                            context,
-                            "onFilesSelected should be implemented",
-                            Toast.LENGTH_LONG
-                        ).show()
-                    } else {
-                        onFilesSelected.invoke(filesUriList)
-                    }
+                    flexCallback.invoke(Callback.Files(filesUriList))
                 } else {
                     activityResult.data?.data.let {
                         if (it != null) {
                             filesUriList.add(it)
                         }
                     }
-                    if (onFilesSelected == null) {
-                        Toast.makeText(
-                            context,
-                            "onFilesSelected should be implemented",
-                            Toast.LENGTH_LONG
-                        ).show()
-                    } else {
-                        onFilesSelected.invoke(filesUriList)
-                    }
+                    flexCallback.invoke(Callback.Files(filesUriList))
                 }
             }
         }
@@ -476,11 +426,7 @@ fun ChatBox(
                         currLocation,
                         LOCATION_URL + latLong
                     )
-                    if(onLocationSelected == null){
-                        Toast.makeText(context, "onLocationSelected should be implemented", Toast.LENGTH_LONG).show()
-                    }else{
-                        onLocationSelected.invoke(location)
-                    }
+                    flexCallback.invoke(Callback.Location(location!!))
                 }
             }
         }
@@ -548,14 +494,8 @@ fun ChatBox(
                     showAudioPreview = false
                 }, onClickSend = {
                     showAudioPreview = false
-                    if (onFilesSelected == null) {
-                        Toast.makeText(
-                            context,
-                            "onAudioRecordingSelected should be implemented",
-                            Toast.LENGTH_LONG
-                        ).show()
-                    } else {
-                        audioFile?.let { onAudioRecordingSelected?.invoke(it) }
+                    audioFile?.let {
+                        flexCallback.invoke(Callback.Voice(it))
                     }
                 })
         } else {
@@ -588,7 +528,7 @@ fun ChatBox(
                         },
                         placeholder = {
                             Text(
-                                text = stringResource(id = R.string.hint),
+                                text = textFieldPlaceHolder,
                                 color = colorResource(id = R.color.c_placeholder),
                                 fontSize = 18.sp
                             )
@@ -636,8 +576,8 @@ fun ChatBox(
             ) {
 
                 if (true) {
-                    when (source) {
-                        Sources.GALLERY -> {
+                    when (flexType) {
+                        FlexType.GALLERY -> {
                             SourceImage(context = context,
                                 icon = R.drawable.ic_gallery,
                                 isDenied = isGalleryPermissionPermanentlyDenied,
@@ -647,7 +587,7 @@ fun ChatBox(
                                 })
                         }
 
-                        Sources.LOCATION -> {
+                        FlexType.LOCATION -> {
                             SourceImage(context = context,
                                 icon = R.drawable.ic_location,
                                 isDenied = isLocationPermissionPermanentlyDenied,
@@ -657,7 +597,7 @@ fun ChatBox(
                                 })
                         }
 
-                        Sources.VOICE -> {
+                        FlexType.VOICE -> {
                             var iconState by remember {
                                 mutableStateOf(R.color.c_2ba6ff)
                             }
@@ -724,7 +664,7 @@ fun ChatBox(
                             }
                         }
 
-                        Sources.CONTACTS -> {
+                        FlexType.CONTACTS -> {
                             SourceImage(context = context,
                                 icon = R.drawable.ic_person,
                                 isDenied = isContactsPermissionPermanentlyDenied,
@@ -733,7 +673,7 @@ fun ChatBox(
                                     contactsPermissionState.launchPermissionRequest()
                                 })
                         }
-                        Sources.FILES -> {
+                        FlexType.FILES -> {
                             SourceImage(context = context,
                                 icon = R.drawable.ic_file,
                                 isDenied = isFilesPermissionPermanentlyDenied,
@@ -742,15 +682,7 @@ fun ChatBox(
                                     filesPermissionState.launchPermissionRequest()
                                 })
                         }
-                        Sources.CAMERA -> {
-                            SourceImage(context = context,
-                                icon = R.drawable.ic_camera,
-                                isDenied = isCameraPermissionPermanentlyDenied,
-                                Manifest.permission.CAMERA, onClickIcon = {
-                                    cameraPermissionState.launchPermissionRequest()
-                                })
-                        }
-                        Sources.VIDEO -> {
+                        FlexType.CAMERA -> {
                             SourceImage(context = context,
                                 icon = R.drawable.ic_camera,
                                 isDenied = isCameraPermissionPermanentlyDenied,

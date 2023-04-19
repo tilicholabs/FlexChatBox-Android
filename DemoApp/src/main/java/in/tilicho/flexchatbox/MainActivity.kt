@@ -2,7 +2,6 @@ package `in`.tilicho.flexchatbox
 
 import android.annotation.SuppressLint
 import android.content.ContentResolver
-import com.google.accompanist.systemuicontroller.rememberSystemUiController
 import android.content.Context
 import android.content.res.AssetFileDescriptor
 import android.media.MediaPlayer
@@ -81,7 +80,9 @@ import androidx.compose.ui.window.Dialog
 import androidx.core.net.toUri
 import androidx.core.text.util.LinkifyCompat
 import coil.compose.rememberAsyncImagePainter
-import `in`.tilicho.flexchatbox.enums.Sources
+import com.google.accompanist.systemuicontroller.rememberSystemUiController
+import `in`.tilicho.flexchatbox.enums.FlexType
+import `in`.tilicho.flexchatbox.enums.MediaType
 import `in`.tilicho.flexchatbox.ui.theme.FlexChatBoxTheme
 import `in`.tilicho.flexchatbox.ui.theme.ItemsBackground
 import `in`.tilicho.flexchatbox.uimodel.Camera
@@ -90,11 +91,11 @@ import `in`.tilicho.flexchatbox.uimodel.Contacts
 import `in`.tilicho.flexchatbox.uimodel.FileItems
 import `in`.tilicho.flexchatbox.uimodel.GalleryItems
 import `in`.tilicho.flexchatbox.uimodel.LocationItem
-import `in`.tilicho.flexchatbox.uimodel.Video
 import `in`.tilicho.flexchatbox.uimodel.Voice
 import `in`.tilicho.flexchatbox.utils.ContactData
 import `in`.tilicho.flexchatbox.utils.getCurrentPositionInMmSs
 import `in`.tilicho.flexchatbox.utils.getDurationInMmSs
+import `in`.tilicho.flexchatbox.utils.getMediaType
 import `in`.tilicho.flexchatbox.utils.getThumbnail
 import java.io.File
 import java.util.*
@@ -108,8 +109,8 @@ class MainActivity : ComponentActivity() {
         setContent {
             val context = this@MainActivity
 
-            var source by remember {
-                mutableStateOf(Sources.CAMERA)
+            var flexType by remember {
+                mutableStateOf(FlexType.CAMERA)
             }
 
             var chatData by remember {
@@ -121,7 +122,7 @@ class MainActivity : ComponentActivity() {
             }
 
             var selectedFlex by remember {
-                mutableStateOf(Sources.CAMERA)
+                mutableStateOf(FlexType.CAMERA)
             }
 
             FlexChatBoxTheme {
@@ -149,8 +150,8 @@ class MainActivity : ComponentActivity() {
 
                             var mExpanded by remember { mutableStateOf(false) }
 
-                            val sources = listOf(Sources.CAMERA, Sources.FILES, Sources.GALLERY, Sources.LOCATION, Sources.VOICE, Sources.CONTACTS)
-                            var mSelectedText by remember { mutableStateOf(Sources.CAMERA.toString()) }
+                            val sources = listOf(FlexType.CAMERA, FlexType.FILES, FlexType.GALLERY, FlexType.LOCATION, FlexType.VOICE, FlexType.CONTACTS)
+                            var mSelectedText by remember { mutableStateOf(FlexType.CAMERA.toString()) }
                             val icon = if (mExpanded)
                                 Icons.Filled.KeyboardArrowUp
                             else
@@ -209,20 +210,56 @@ class MainActivity : ComponentActivity() {
                             .padding(dimensionResource(id = R.dimen.spacing_10dp))
                             .padding(start = dimensionResource(id = R.dimen.spacing_10))
                     ) {
-                        ChatBox(
+                        FlexChatBox(
                             context = context,
-                            source = selectedFlex,
-                            onGallerySelected = {
-                                val currData =
-                                    mutableListOf(ChatDataModel(galleryItems = GalleryItems(uris = it.toMutableList())))
-                                chatData?.let { it1 -> currData.addAll(0, it1) }
-                                chatData = currData
-                            },
-                            onAudioRecordingSelected = {
-                                val currData =
-                                    mutableListOf(ChatDataModel(voice = Voice(file = it))).toMutableList()
-                                chatData?.let { it1 -> currData.addAll(currData.size - 1, it1) }
-                                chatData = currData
+                            flexType = selectedFlex,
+                            textFieldPlaceHolder = stringResource(id = R.string.hint),
+                            flexCallback = { callback ->
+                                when(callback) {
+                                    is Callback.Camera -> {
+                                        val currData =
+                                            mutableListOf(ChatDataModel(camera = Camera(uri = callback.uri))).toMutableList()
+                                        chatData?.let { currData.addAll(currData.size - 1, it) }
+                                        chatData = currData
+                                    }
+                                    is Callback.Voice -> {
+                                        val currData =
+                                            mutableListOf(ChatDataModel(voice = Voice(callback.file)))
+                                        chatData?.let { it1 -> currData.addAll(0, it1) }
+                                        chatData = currData
+                                    }
+                                    is Callback.Files -> {
+                                        val currData =
+                                            mutableListOf(ChatDataModel(file = FileItems(files = callback.uris.toMutableList())))
+                                        chatData?.let { it1 -> currData.addAll(0, it1) }
+                                        chatData = currData
+                                    }
+                                    is Callback.Location -> {
+                                        callback.let {
+                                            val currData =
+                                                mutableListOf(
+                                                    ChatDataModel(
+                                                        location = LocationItem(location = it.location)
+                                                    )
+                                                ).toMutableList()
+                                            chatData?.let { it3 -> currData.addAll(currData.size - 1, it3) }
+                                            chatData = currData
+                                        }
+                                    }
+                                    is Callback.Contacts -> {
+                                        val currData =
+                                            mutableListOf(ChatDataModel(contacts = Contacts(contacts = callback.contacts.toMutableList())))
+                                        chatData?.let { it1 -> currData.addAll(0, it1) }
+                                        chatData = currData
+                                    }
+                                    is Callback.Gallery -> {
+                                        val currData =
+                                            mutableListOf(ChatDataModel(galleryItems = GalleryItems(uris = callback.uris.toMutableList())))
+                                        chatData?.let { it1 -> currData.addAll(0, it1) }
+                                        chatData = currData
+                                    }
+                                    else -> {}
+                                }
                             },
                             onClickSend = { it ->
                                 it.let {
@@ -237,44 +274,6 @@ class MainActivity : ComponentActivity() {
                                         }
                                         chatData = currData
                                     }
-                                }
-                            },
-                            onLocationSelected = {
-                                it.let {
-                                    val currData =
-                                        mutableListOf(
-                                            ChatDataModel(
-                                                location = LocationItem(location = it)
-                                            )
-                                        ).toMutableList()
-                                    chatData?.let { it3 -> currData.addAll(currData.size - 1, it3) }
-                                    chatData = currData
-                                }
-                            },
-                            onContactsSelected = {
-                                val currData =
-                                    mutableListOf(ChatDataModel(contacts = Contacts(contacts = it.toMutableList())))
-                                chatData?.let { it1 -> currData.addAll(0, it1) }
-                                chatData = currData
-                            },
-                            onFilesSelected = {
-                                val currData =
-                                    mutableListOf(ChatDataModel(file = FileItems(files = it.toMutableList())))
-                                chatData?.let { it1 -> currData.addAll(0, it1) }
-                                chatData = currData
-                            },
-                            onCameraSelected = { _source, uri ->
-                                source = _source
-                                chatData = if (_source == Sources.CAMERA) {
-                                    val currData =
-                                        mutableListOf(ChatDataModel(camera = Camera(uri = uri))).toMutableList()
-                                    chatData?.let { currData.addAll(currData.size - 1, it) }
-                                    currData
-                                } else {
-                                    val currData =
-                                        mutableListOf(ChatDataModel(video = Video(uri = uri))).toMutableList()
-                                    chatData?.let { currData.addAll(currData.size - 1, it) }
-                                    currData
                                 }
                             }
                         )
@@ -314,14 +313,14 @@ fun ChatUI(context: Context, chatData: List<ChatDataModel>) {
         modifier = Modifier, state = lazyListState
     ) {
         for (chatItem in chatData) {
-            if (chatItem.contacts?.sourceType == Sources.CONTACTS) {
+            if (chatItem.contacts?.sourceType == FlexType.CONTACTS) {
                 item {
-                    val contacts = chatItem.contacts.contacts
+                    val contacts = chatItem.contacts!!.contacts
                     SetContactItemCell(contacts)
                     Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_10dp)))
                 }
-            } else if (chatItem.galleryItems?.sourceType == Sources.GALLERY) {
-                val galleryItemsUriList = chatItem.galleryItems.uris
+            } else if (chatItem.galleryItems?.sourceType == FlexType.GALLERY) {
+                val galleryItemsUriList = chatItem.galleryItems!!.uris
                 if (galleryItemsUriList != null) {
                     items(galleryItemsUriList.size) {
                         val galleryItem = galleryItemsUriList[it]
@@ -329,20 +328,20 @@ fun ChatUI(context: Context, chatData: List<ChatDataModel>) {
                         Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_10dp)))
                     }
                 }
-            } else if (chatItem.location?.sourceType == Sources.LOCATION) {
+            } else if (chatItem.location?.sourceType == FlexType.LOCATION) {
                 item {
-                    val location = chatItem.location.location
+                    val location = chatItem.location!!.location
                     SetLocationItemCell(context = context, location = location)
                     Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_10dp)))
                 }
-            } else if (chatItem.voice?.sourceType == Sources.VOICE) {
+            } else if (chatItem.voice?.sourceType == FlexType.VOICE) {
                 item {
-                    val audioFile = chatItem.voice.file
+                    val audioFile = chatItem.voice!!.file
                     SetVoiceItemCell(context = context, audioFile = audioFile)
                     Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_10dp)))
                 }
-            } else if (chatItem.file?.sourceType == Sources.FILES) {
-                val fileItemsUriList = chatItem.file.files
+            } else if (chatItem.file?.sourceType == FlexType.FILES) {
+                val fileItemsUriList = chatItem.file!!.files
                 fileItemsUriList?.let {
                     items(fileItemsUriList.size) { index ->
                         val fileItem = fileItemsUriList[index]
@@ -350,17 +349,19 @@ fun ChatUI(context: Context, chatData: List<ChatDataModel>) {
                         Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_10dp)))
                     }
                 }
-            } else if (chatItem.camera?.sourceType == Sources.CAMERA) {
-                val cameraImage = chatItem.camera.uri
-                item {
-                    SetCameraPictureItemCell(cameraImage)
-                    Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_10dp)))
-                }
-            } else if (chatItem.video?.sourceType == Sources.VIDEO) {
-                val video = chatItem.video.uri
-                item {
-                    SetCameraVideoItemCell(context = context, video = video)
-                    Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_10dp)))
+            } else if (chatItem.camera?.sourceType == FlexType.CAMERA) {
+                val cameraItem = chatItem.camera!!.uri
+                val mediaType = getMediaType(context, cameraItem)
+                if (mediaType == MediaType.MediaTypeVideo) {
+                    item {
+                        SetCameraVideoItemCell(context = context, video = cameraItem)
+                        Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_10dp)))
+                    }
+                } else if (mediaType == MediaType.MediaTypeImage) {
+                    item {
+                        SetCameraPictureItemCell(cameraItem)
+                        Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_10dp)))
+                    }
                 }
             } else {
                 val text = chatItem.textFieldValue
@@ -866,7 +867,7 @@ fun SetChatTextCell(text: String) {
 
 @Composable
 fun DisplayFlexItems(
-    selectedFlex: (Sources) -> Unit,
+    selectedFlex: (FlexType) -> Unit,
     setFlexItemDialog: (Boolean) -> Unit,
 ) {
     Row(
@@ -887,7 +888,7 @@ fun DisplayFlexItems(
             modifier = Modifier
                 .padding(dimensionResource(id = R.dimen.spacing_10dp))
                 .clickable(onClick = {
-                    selectedFlex.invoke(Sources.CAMERA)
+                    selectedFlex.invoke(FlexType.CAMERA)
                     setFlexItemDialog.invoke(false)
                 }
                 ), colorFilter = ColorFilter.tint(Color.Black))
@@ -897,7 +898,7 @@ fun DisplayFlexItems(
             modifier = Modifier
                 .padding(dimensionResource(id = R.dimen.spacing_10dp))
                 .clickable(onClick = {
-                    selectedFlex.invoke(Sources.VOICE)
+                    selectedFlex.invoke(FlexType.VOICE)
                     setFlexItemDialog.invoke(false)
                 }
                 ), colorFilter = ColorFilter.tint(Color.Black)
@@ -908,7 +909,7 @@ fun DisplayFlexItems(
             modifier = Modifier
                 .padding(dimensionResource(id = R.dimen.spacing_10dp))
                 .clickable(onClick = {
-                    selectedFlex.invoke(Sources.LOCATION)
+                    selectedFlex.invoke(FlexType.LOCATION)
                     setFlexItemDialog.invoke(false)
                 }
                 ), colorFilter = ColorFilter.tint(Color.Black))
@@ -918,7 +919,7 @@ fun DisplayFlexItems(
             modifier = Modifier
                 .padding(dimensionResource(id = R.dimen.spacing_10dp))
                 .clickable(onClick = {
-                    selectedFlex.invoke(Sources.GALLERY)
+                    selectedFlex.invoke(FlexType.GALLERY)
                     setFlexItemDialog.invoke(false)
                 }), colorFilter = ColorFilter.tint(Color.Black)
         )
@@ -928,7 +929,7 @@ fun DisplayFlexItems(
             modifier = Modifier
                 .padding(dimensionResource(id = R.dimen.spacing_10dp))
                 .clickable(onClick = {
-                    selectedFlex.invoke(Sources.CONTACTS)
+                    selectedFlex.invoke(FlexType.CONTACTS)
                     setFlexItemDialog.invoke(false)
                 })
         )
@@ -938,7 +939,7 @@ fun DisplayFlexItems(
             modifier = Modifier
                 .padding(dimensionResource(id = R.dimen.spacing_10dp))
                 .clickable(onClick = {
-                    selectedFlex.invoke(Sources.FILES)
+                    selectedFlex.invoke(FlexType.FILES)
                     setFlexItemDialog.invoke(false)
                 }),
             colorFilter = ColorFilter.tint(Color.Black)
