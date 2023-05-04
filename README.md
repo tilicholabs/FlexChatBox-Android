@@ -40,7 +40,7 @@ In your root `build.gradle`, add `mavenCentral()` to the `allprojects` section.
 In your module `build.gradle`, add
 
     dependencies {
-        implementation 'in.tilicho.android:flexchatbox:1.0.0'
+        implementation 'in.tilicho.android:flexchatbox:0.0.1-alpha'
     }
 
 ## Usage(</>)
@@ -63,9 +63,8 @@ Initialising the SDK
 ```
     FlexChatBox(
         context = context,
-        flexType = FlexType.Camera,
         textFieldPlaceHolder = "Type your text here",
-        flexCallback = { callback -> 
+        flexType = Pair(FlexType.Camera) {
             when(callback) {
                 is Callback.Camera -> {
                     // Access the uri from callback in the following way

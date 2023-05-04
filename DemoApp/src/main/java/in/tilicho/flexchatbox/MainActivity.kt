@@ -125,6 +125,14 @@ class MainActivity : ComponentActivity() {
                 mutableStateOf(FlexType.CAMERA)
             }
 
+            fun performChatUIOperations(uris: List<Uri>?) {
+                val currData =
+                    mutableListOf(ChatDataModel(galleryItems = GalleryItems(
+                        uris = uris?.toMutableList())))
+                chatData?.let { it1 -> currData.addAll(0, it1) }
+                chatData = currData
+            }
+
             FlexChatBoxTheme {
                 SetStatusBarColour()
                 Scaffold(topBar = {
@@ -212,10 +220,8 @@ class MainActivity : ComponentActivity() {
                     ) {
                         FlexChatBox(
                             context = context,
-                            flexType = selectedFlex,
-                            textFieldPlaceHolder = stringResource(id = R.string.hint),
-                            flexCallback = { callback ->
-                                when(callback) {
+                            flexType = Pair(selectedFlex) { callback ->
+                                when (callback) {
                                     is Callback.Camera -> {
                                         val currData =
                                             mutableListOf(ChatDataModel(camera = Camera(uri = callback.uri))).toMutableList()
@@ -242,7 +248,10 @@ class MainActivity : ComponentActivity() {
                                                         location = LocationItem(location = it.location)
                                                     )
                                                 ).toMutableList()
-                                            chatData?.let { it3 -> currData.addAll(currData.size - 1, it3) }
+                                            chatData?.let { it3 ->
+                                                currData.addAll(currData.size - 1,
+                                                    it3)
+                                            }
                                             chatData = currData
                                         }
                                     }
@@ -254,29 +263,30 @@ class MainActivity : ComponentActivity() {
                                     }
                                     is Callback.Gallery -> {
                                         val currData =
-                                            mutableListOf(ChatDataModel(galleryItems = GalleryItems(uris = callback.uris.toMutableList())))
+                                            mutableListOf(ChatDataModel(galleryItems = GalleryItems(
+                                                uris = callback.uris.toMutableList())))
                                         chatData?.let { it1 -> currData.addAll(0, it1) }
                                         chatData = currData
                                     }
                                     else -> {}
                                 }
                             },
-                            onClickSend = { it ->
-                                it.let {
-                                    if (it != "") {
-                                        val currData =
-                                            mutableListOf(ChatDataModel(textFieldValue = it)).toMutableList()
-                                        chatData?.let { it1 ->
-                                            currData.addAll(
-                                                currData.size - 1,
-                                                it1
-                                            )
-                                        }
-                                        chatData = currData
+                            textFieldPlaceHolder = stringResource(id = R.string.hint),
+                        ) { it ->
+                            it.let {
+                                if (it != "") {
+                                    val currData =
+                                        mutableListOf(ChatDataModel(textFieldValue = it)).toMutableList()
+                                    chatData?.let { it1 ->
+                                        currData.addAll(
+                                            currData.size - 1,
+                                            it1
+                                        )
                                     }
+                                    chatData = currData
                                 }
                             }
-                        )
+                        }
                     }
                 }) {
                     Column(
@@ -303,8 +313,8 @@ class MainActivity : ComponentActivity() {
 fun ChatUI(context: Context, chatData: List<ChatDataModel>) {
     val lazyListState = rememberLazyListState()
     LaunchedEffect(chatData.size) {
-        if(chatData.isNotEmpty()){
-            lazyListState.animateScrollToItem(chatData.size-1)
+        if (chatData.isNotEmpty()) {
+            lazyListState.animateScrollToItem(chatData.size - 1)
         }
     }
     LazyColumn(
@@ -313,13 +323,13 @@ fun ChatUI(context: Context, chatData: List<ChatDataModel>) {
         modifier = Modifier, state = lazyListState
     ) {
         for (chatItem in chatData) {
-            if (chatItem.contacts?.sourceType == FlexType.CONTACTS) {
+            if (chatItem.contacts?.flexType == FlexType.CONTACTS) {
                 item {
                     val contacts = chatItem.contacts!!.contacts
                     SetContactItemCell(contacts)
                     Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_10dp)))
                 }
-            } else if (chatItem.galleryItems?.sourceType == FlexType.GALLERY) {
+            } else if (chatItem.galleryItems?.flexType == FlexType.GALLERY) {
                 val galleryItemsUriList = chatItem.galleryItems!!.uris
                 if (galleryItemsUriList != null) {
                     items(galleryItemsUriList.size) {
@@ -328,19 +338,19 @@ fun ChatUI(context: Context, chatData: List<ChatDataModel>) {
                         Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_10dp)))
                     }
                 }
-            } else if (chatItem.location?.sourceType == FlexType.LOCATION) {
+            } else if (chatItem.location?.flexType == FlexType.LOCATION) {
                 item {
                     val location = chatItem.location!!.location
                     SetLocationItemCell(context = context, location = location)
                     Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_10dp)))
                 }
-            } else if (chatItem.voice?.sourceType == FlexType.VOICE) {
+            } else if (chatItem.voice?.flexType == FlexType.VOICE) {
                 item {
                     val audioFile = chatItem.voice!!.file
                     SetVoiceItemCell(context = context, audioFile = audioFile)
                     Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_10dp)))
                 }
-            } else if (chatItem.file?.sourceType == FlexType.FILES) {
+            } else if (chatItem.file?.flexType == FlexType.FILES) {
                 val fileItemsUriList = chatItem.file!!.files
                 fileItemsUriList?.let {
                     items(fileItemsUriList.size) { index ->
@@ -349,7 +359,7 @@ fun ChatUI(context: Context, chatData: List<ChatDataModel>) {
                         Spacer(modifier = Modifier.height(dimensionResource(id = R.dimen.spacing_10dp)))
                     }
                 }
-            } else if (chatItem.camera?.sourceType == FlexType.CAMERA) {
+            } else if (chatItem.camera?.flexType == FlexType.CAMERA) {
                 val cameraItem = chatItem.camera!!.uri
                 val mediaType = getMediaType(context, cameraItem)
                 if (mediaType == MediaType.MediaTypeVideo) {
@@ -949,12 +959,12 @@ fun DisplayFlexItems(
 
 @Composable
 fun SetStatusBarColour() {
-    var statusBarColour  by remember {
+    var statusBarColour by remember {
         mutableStateOf(Color.Black)
     }
     val systemUiController = rememberSystemUiController()
     val useDarkIcons = !isSystemInDarkTheme()
-    if(isSystemInDarkTheme()){
+    if (isSystemInDarkTheme()) {
         statusBarColour = Color.Black
     }
 

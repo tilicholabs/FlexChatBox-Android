@@ -19,32 +19,32 @@ data class ChatDataModel(
 
 data class Camera(
     val uri: Uri? = null,
-    val sourceType: FlexType = FlexType.CAMERA
+    val flexType: FlexType = FlexType.CAMERA
 )
 
 data class Voice(
     val file: File? = null,
-    val sourceType: FlexType = FlexType.VOICE
+    val flexType: FlexType = FlexType.VOICE
 )
 
 data class LocationItem(
     val location: Location? = null,
-    val sourceType: FlexType = FlexType.LOCATION
+    val flexType: FlexType = FlexType.LOCATION
 )
 
 data class GalleryItems(
     val uris: List<Uri>? = null,
-    val sourceType: FlexType = FlexType.GALLERY
+    val flexType: FlexType = FlexType.GALLERY
 )
 
 data class FileItems(
     val files: List<Uri>? = null,
-    val sourceType: FlexType = FlexType.FILES
+    val flexType: FlexType = FlexType.FILES
 )
 
 data class Contacts(
     val contacts: List<ContactData>? = null,
-    val sourceType: FlexType = FlexType.CONTACTS
+    val flexType: FlexType = FlexType.CONTACTS
 )
 
 

@@ -132,10 +132,9 @@ import kotlin.time.Duration.Companion.seconds
 @Composable
 fun FlexChatBox(
     context: Context,
-    flexType: FlexType,
     textFieldPlaceHolder: String = stringResource(id = R.string.hint),
-    flexCallback: (Callback) -> Unit,
-    onClickSend: ((String) -> Unit)? = null,
+    flexType: Pair<FlexType, ((Callback) -> Unit)>,
+    onClickSend: ((String) -> Unit)? = null
 ) {
     var textFieldValue by rememberSaveable { mutableStateOf(String.empty()) }
 
@@ -177,7 +176,7 @@ fun FlexChatBox(
         DisplayContacts(contacts = contacts, selectedContactsCallBack = {
             displayContacts = false
             if (it.isNotEmpty()) {
-                flexCallback.invoke(Callback.Contacts(it))
+                flexType.second.invoke(Callback.Contacts(it))
             }
         })
 
@@ -310,6 +309,7 @@ fun FlexChatBox(
         galleryState = true
         showDialog = true
     }
+
     if (galleryState) {
         if (galleryList?.isNotEmpty() == true) {
             if (showDialog) {
@@ -320,7 +320,7 @@ fun FlexChatBox(
                     onDismissCallback = { dismissDialog, setImages ->
                         showDialog = dismissDialog
                         if (setImages) {
-                            flexCallback.invoke(Callback.Gallery(galleryList ?: listOf()))
+                            flexType.second.invoke(Callback.Gallery(galleryList ?: listOf()))
                         }
                     })
             }
@@ -333,13 +333,11 @@ fun FlexChatBox(
 
                 if (activityResult.data?.data != null) {
                     activityResult.data?.data?.let {
-                        flexCallback.invoke(
-                            Callback.Camera(it)
-                        )
+                        flexType.second.invoke(Callback.Camera(it))
                     }
                 } else {
                     getImageUri(context, activityResult.data?.extras?.get("data") as Bitmap)?.let {
-                        flexCallback.invoke(Callback.Camera(it))
+                        flexType.second.invoke(Callback.Camera(it))
                     }
                 }
             }
@@ -357,14 +355,14 @@ fun FlexChatBox(
                             ?.let { (filesUriList.add(it)) }
                         currentItem += 1
                     }
-                    flexCallback.invoke(Callback.Files(filesUriList))
+                    flexType.second.invoke(Callback.Files(filesUriList))
                 } else {
                     activityResult.data?.data.let {
                         if (it != null) {
                             filesUriList.add(it)
                         }
                     }
-                    flexCallback.invoke(Callback.Files(filesUriList))
+                    flexType.second.invoke(Callback.Files(filesUriList))
                 }
             }
         }
@@ -426,7 +424,7 @@ fun FlexChatBox(
                         currLocation,
                         LOCATION_URL + latLong
                     )
-                    flexCallback.invoke(Callback.Location(location!!))
+                    flexType.second.invoke(Callback.Location(location!!))
                 }
             }
         }
@@ -495,7 +493,7 @@ fun FlexChatBox(
                 }, onClickSend = {
                     showAudioPreview = false
                     audioFile?.let {
-                        flexCallback.invoke(Callback.Voice(it))
+                        flexType.second.invoke(Callback.Voice(it))
                     }
                 })
         } else {
@@ -576,7 +574,7 @@ fun FlexChatBox(
             ) {
 
                 if (true) {
-                    when (flexType) {
+                    when (flexType.first) {
                         FlexType.GALLERY -> {
                             SourceImage(context = context,
                                 icon = R.drawable.ic_gallery,
