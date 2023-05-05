@@ -1,0 +1,20 @@
+<resources>
+    <dimen name="spacing_00">2dp</dimen>
+    <dimen name="spacing_10">4dp</dimen>
+    <dimen name="spacing_20">8dp</dimen>
+    <dimen name="spacing_30">12dp</dimen>
+    <dimen name="spacing_40">16dp</dimen>
+    <dimen name="spacing_50">20dp</dimen>
+    <dimen name="spacing_60">24dp</dimen>
+    <dimen name="spacing_70">32dp</dimen>
+    <dimen name="spacing_80">40dp</dimen>
+    <dimen name="spacing_90">48dp</dimen>
+    <dimen name="spacing_100">56dp</dimen>
+    <dimen name="chat_text_cell_size">250dp</dimen>
+    <dimen name="preview_image_height">473dp</dimen>
+    <dimen name="spacing_10dp">10dp</dimen>
+    <dimen name="image_size">150dp</dimen>
+    <dimen name="dialog_size">300dp</dimen>
+    <dimen name="drop_down_width">125dp</dimen>
+    <dimen name="audio_seekbar_size">190dp</dimen>
+</resources>
