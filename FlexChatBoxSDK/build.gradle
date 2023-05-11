@@ -4,9 +4,6 @@ plugins {
     id 'maven-publish'
 }
 
-group 'in.tilicho'
-version '0.0.1-alpha'
-
 android {
     namespace 'in.tilicho.flexchatbox'
     compileSdk 33
@@ -72,4 +69,4 @@ dependencies {
     debugImplementation "androidx.compose.ui:ui-test-manifest:$compose_ui_version"
 }
 
-apply from: "${rootProject.projectDir}/scripts/publish-project.gradle"
+apply from: "${rootProject.projectDir}/scripts/publish-module.gradle"

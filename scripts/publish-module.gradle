@@ -83,11 +83,11 @@ afterEvaluate {
     }
 }
 
+ext["signing.keyId"] = rootProject.ext["signing.keyId"]
+ext["signing.password"] = rootProject.ext["signing.password"]
+ext["signing.key"] = rootProject.ext["signing.key"]
+ext["signing.secretKeyRingFile"] = rootProject.ext["signing.secretKeyRingFile"]
+
 signing {
-    useInMemoryPgpKeys(
-            rootProject.ext['signing.keyId'],
-            rootProject.ext['signing.password'],
-            rootProject.ext['signing.secretKeyRingFile'],
-    )
     sign publishing.publications
 }
