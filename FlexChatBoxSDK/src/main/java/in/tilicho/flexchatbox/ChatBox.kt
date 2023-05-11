@@ -11,7 +11,6 @@ import android.os.Build
 import android.os.CountDownTimer
 import android.os.Handler
 import android.os.Looper
-import android.widget.Toast
 import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -39,19 +38,15 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.Button
 import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.Card
 import androidx.compose.material.Divider
 import androidx.compose.material.Icon
-import androidx.compose.material.IconButton
 import androidx.compose.material.Slider
 import androidx.compose.material.SliderDefaults
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
-import androidx.compose.material.TextField
-import androidx.compose.material.TextFieldDefaults
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.Person
@@ -62,7 +57,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
@@ -83,7 +77,6 @@ import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -106,8 +99,6 @@ import `in`.tilicho.flexchatbox.enums.MediaType
 import `in`.tilicho.flexchatbox.utils.ContactData
 import `in`.tilicho.flexchatbox.utils.GALLERY_INPUT_TYPE
 import `in`.tilicho.flexchatbox.utils.GetMediaActivityResultContract
-import `in`.tilicho.flexchatbox.utils.LOCATION_URL
-import `in`.tilicho.flexchatbox.utils.cameraIntent
 import `in`.tilicho.flexchatbox.utils.checkPermission
 import `in`.tilicho.flexchatbox.utils.findActivity
 import `in`.tilicho.flexchatbox.utils.getContacts
@@ -115,12 +106,9 @@ import `in`.tilicho.flexchatbox.utils.getCurrentPositionInMmSs
 import `in`.tilicho.flexchatbox.utils.getDurationInMmSs
 import `in`.tilicho.flexchatbox.utils.getGrantedPermissions
 import `in`.tilicho.flexchatbox.utils.getImageUri
-import `in`.tilicho.flexchatbox.utils.getLocation
 import `in`.tilicho.flexchatbox.utils.getMediaType
 import `in`.tilicho.flexchatbox.utils.getThumbnail
-import `in`.tilicho.flexchatbox.utils.isLocationEnabled
 import `in`.tilicho.flexchatbox.utils.navigateToAppSettings
-import `in`.tilicho.flexchatbox.utils.openFiles
 import kotlinx.coroutines.delay
 import java.io.File
 import kotlin.math.roundToInt
@@ -136,12 +124,6 @@ fun FlexChatBox(
     flexType: Pair<FlexType, ((Callback) -> Unit)>,
     onClickSend: ((String) -> Unit)? = null
 ) {
-    var textFieldValue by rememberSaveable { mutableStateOf(String.empty()) }
-
-    var location by remember {
-        mutableStateOf<Location?>(null)
-    }
-
     var galleryList by remember {
         mutableStateOf<List<Uri>?>(null)
     }
@@ -189,30 +171,9 @@ fun FlexChatBox(
 
     var showSettingsDialog by remember { mutableStateOf(false) }
 
-    var isCameraPermissionPermanentlyDenied by remember { mutableStateOf(false) }
     var isGalleryPermissionPermanentlyDenied by remember { mutableStateOf(false) }
-    var isLocationPermissionPermanentlyDenied by remember { mutableStateOf(false) }
     var isContactsPermissionPermanentlyDenied by remember { mutableStateOf(false) }
-    var isFilesPermissionPermanentlyDenied by remember { mutableStateOf(false) }
     var isRecordAudioPermissionPermanentlyDenied by remember { mutableStateOf(false) }
-
-    if (isCameraPermissionPermanentlyDenied) {
-        if (showSettingsDialog) {
-            ShowNavigateToAppSettingsDialog(context = context, onDismissCallback = {
-                showSettingsDialog = it
-            })
-        }
-        OnLifecycleEvent { _, event ->
-            when (event) {
-                Lifecycle.Event.ON_RESUME -> {
-                    if (getGrantedPermissions(context).contains(Manifest.permission.CAMERA)) {
-                        isCameraPermissionPermanentlyDenied = false
-                    }
-                }
-                else -> {}
-            }
-        }
-    }
 
     if (isGalleryPermissionPermanentlyDenied) {
         if (showSettingsDialog) {
@@ -232,24 +193,6 @@ fun FlexChatBox(
         }
     }
 
-    if (isLocationPermissionPermanentlyDenied) {
-        if (showSettingsDialog) {
-            ShowNavigateToAppSettingsDialog(context = context, onDismissCallback = {
-                showSettingsDialog = it
-            })
-        }
-        OnLifecycleEvent { _, event ->
-            when (event) {
-                Lifecycle.Event.ON_RESUME -> {
-                    if (getGrantedPermissions(context).contains(Manifest.permission.ACCESS_FINE_LOCATION)) {
-                        isLocationPermissionPermanentlyDenied = false
-                    }
-                }
-                else -> {}
-            }
-        }
-    }
-
     if (isContactsPermissionPermanentlyDenied) {
         if (showSettingsDialog) {
             ShowNavigateToAppSettingsDialog(context = context, onDismissCallback = {
@@ -261,24 +204,6 @@ fun FlexChatBox(
                 Lifecycle.Event.ON_RESUME -> {
                     if (getGrantedPermissions(context).contains(Manifest.permission.READ_CONTACTS)) {
                         isContactsPermissionPermanentlyDenied = false
-                    }
-                }
-                else -> {}
-            }
-        }
-    }
-
-    if (isFilesPermissionPermanentlyDenied) {
-        if (showSettingsDialog) {
-            ShowNavigateToAppSettingsDialog(context = context, onDismissCallback = {
-                showSettingsDialog = it
-            })
-        }
-        OnLifecycleEvent { _, event ->
-            when (event) {
-                Lifecycle.Event.ON_RESUME -> {
-                    if (getGrantedPermissions(context).contains(Manifest.permission.READ_EXTERNAL_STORAGE)) {
-                        isFilesPermissionPermanentlyDenied = false
                     }
                 }
                 else -> {}
@@ -327,46 +252,6 @@ fun FlexChatBox(
         }
     }
 
-    val cameraLauncher =
-        rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { activityResult ->
-            if (activityResult.resultCode == Activity.RESULT_OK) {
-
-                if (activityResult.data?.data != null) {
-                    activityResult.data?.data?.let {
-                        flexType.second.invoke(Callback.Camera(it))
-                    }
-                } else {
-                    getImageUri(context, activityResult.data?.extras?.get("data") as Bitmap)?.let {
-                        flexType.second.invoke(Callback.Camera(it))
-                    }
-                }
-            }
-        }
-
-    val fileLauncher =
-        rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { activityResult ->
-            val filesUriList: MutableList<Uri> = mutableListOf()
-            if (activityResult.resultCode == Activity.RESULT_OK) {
-                if (activityResult.data?.clipData != null) {
-                    val count = activityResult.data?.clipData?.itemCount ?: 0
-                    var currentItem = 0
-                    while (currentItem < count) {
-                        activityResult.data?.clipData?.getItemAt(currentItem)?.uri
-                            ?.let { (filesUriList.add(it)) }
-                        currentItem += 1
-                    }
-                    flexType.second.invoke(Callback.Files(filesUriList))
-                } else {
-                    activityResult.data?.data.let {
-                        if (it != null) {
-                            filesUriList.add(it)
-                        }
-                    }
-                    flexType.second.invoke(Callback.Files(filesUriList))
-                }
-            }
-        }
-
     val galleryPermissionState =
         rememberPermissionState(permission = Manifest.permission.READ_EXTERNAL_STORAGE) { isGranted ->
             val permissionPermanentlyDenied = !ActivityCompat.shouldShowRequestPermissionRationale(
@@ -381,51 +266,6 @@ fun FlexChatBox(
                 isGalleryPermissionPermanentlyDenied = false
                 showDialog = false
                 galleryLauncher.launch(GALLERY_INPUT_TYPE)
-            }
-        }
-
-    val cameraPermissionState =
-        rememberPermissionState(permission = Manifest.permission.CAMERA) { isGranted ->
-            val permissionPermanentlyDenied = !ActivityCompat.shouldShowRequestPermissionRationale(
-                context.findActivity(), Manifest.permission.CAMERA
-            ) && !isGranted
-
-            if (permissionPermanentlyDenied) {
-                isCameraPermissionPermanentlyDenied = true
-                showSettingsDialog = true
-            }
-            if (isGranted) {
-                isCameraPermissionPermanentlyDenied = false
-                showDialog = false
-                cameraIntent(cameraLauncher)
-            }
-        }
-
-    val locationPermissionState =
-        rememberPermissionState(permission = Manifest.permission.ACCESS_FINE_LOCATION) { isGranted ->
-            val permissionPermanentlyDenied = !ActivityCompat.shouldShowRequestPermissionRationale(
-                context.findActivity(), Manifest.permission.ACCESS_FINE_LOCATION
-            ) && !isGranted
-
-            if (permissionPermanentlyDenied) {
-                isLocationPermissionPermanentlyDenied = true
-                showSettingsDialog = true
-            }
-            if (isGranted) {
-                isLocationPermissionPermanentlyDenied = false
-                showDialog = false
-                if (!isLocationEnabled(context)) {
-                    Toast.makeText(context, R.string.enable_location, Toast.LENGTH_LONG).show()
-                } else {
-                    val currLocation = getLocation(context)
-                    val latLong =
-                        (currLocation?.latitude).toString() + "," + (currLocation?.longitude).toString()
-                    location = Location(
-                        currLocation,
-                        LOCATION_URL + latLong
-                    )
-                    flexType.second.invoke(Callback.Location(location!!))
-                }
             }
         }
 
@@ -448,23 +288,6 @@ fun FlexChatBox(
             }
         }
 
-    val filesPermissionState =
-        rememberPermissionState(permission = Manifest.permission.READ_EXTERNAL_STORAGE) { isGranted ->
-            val permissionPermanentlyDenied = !ActivityCompat.shouldShowRequestPermissionRationale(
-                context.findActivity(), Manifest.permission.READ_EXTERNAL_STORAGE
-            ) && !isGranted
-
-            if (permissionPermanentlyDenied) {
-                isFilesPermissionPermanentlyDenied = true
-                showSettingsDialog = true
-            }
-            if (isGranted) {
-                isFilesPermissionPermanentlyDenied = false
-                showDialog = false
-                openFiles(context, fileLauncher)
-            }
-        }
-
     val recordAudioPermissionState =
         rememberPermissionState(permission = Manifest.permission.RECORD_AUDIO) { isGranted ->
             val permissionPermanentlyDenied = !ActivityCompat.shouldShowRequestPermissionRationale(
@@ -481,220 +304,119 @@ fun FlexChatBox(
             }
         }
 
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.Bottom,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        if (showAudioPreview) {
-            AudioPreviewUI(context = context, audioFile = audioFile,
-                onClickDelete = {
-                    showAudioPreview = false
-                }, onClickSend = {
-                    showAudioPreview = false
-                    audioFile?.let {
-                        flexType.second.invoke(Callback.Voice(it))
-                    }
+    when (flexType.first) {
+        FlexType.GALLERY -> {
+            SourceImage(context = context,
+                icon = R.drawable.ic_gallery,
+                isDenied = isGalleryPermissionPermanentlyDenied,
+                permission = Manifest.permission.READ_EXTERNAL_STORAGE,
+                onClickIcon = {
+                    galleryPermissionState.launchPermissionRequest()
                 })
-        } else {
-            if (isRecording) {
-                AudioRecordingUi()
+        }
+
+        FlexType.LOCATION -> {
+            Location(context = context, textFieldPlaceHolder = textFieldPlaceHolder, onClickSend = {
+                onClickSend?.invoke(it)
+            }, locationCallback = {
+                flexType.second.invoke(Callback.Location(it))
+            })
+        }
+
+        FlexType.VOICE -> {
+            var iconState by remember {
+                mutableStateOf(R.color.c_2ba6ff)
+            }
+            if (!checkPermission(context, Manifest.permission.RECORD_AUDIO)) {
+                if (isRecordAudioPermissionPermanentlyDenied) {
+                    iconState = R.color.c_ebeef1
+                }
             } else {
-                var sendIconState by remember {
-                    mutableStateOf(Color(0xFF808080))
-                }
-                sendIconState = if (textFieldValue.isNotEmpty()) {
-                    colorResource(R.color.c_2ba6ff)
-                } else {
-                    Color(0xFF808080)
-                }
-                Row(
-                    verticalAlignment = Alignment.Bottom, modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(4f)
-                        .clip(shape = RoundedCornerShape(dimensionResource(id = R.dimen.spacing_60)))
-                        .background(
-                            color = if (isSystemInDarkTheme()) Color.Black else colorResource(
-                                id = R.color.c_edf0ee
-                            )
-                        )
-                ) {
-                    TextField(
-                        value = textFieldValue,
-                        onValueChange = {
-                            textFieldValue = it
-                        },
-                        placeholder = {
-                            Text(
-                                text = textFieldPlaceHolder,
-                                color = colorResource(id = R.color.c_placeholder),
-                                fontSize = 18.sp
-                            )
-                        },
-                        colors = TextFieldDefaults.textFieldColors(
-                            backgroundColor = Color.Transparent,
-                            focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent,
-                        ),
-                        singleLine = false,
-                        maxLines = 4,
-                        modifier = Modifier.weight(6f),
-                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences)
-                    )
-                    IconButton(modifier = Modifier.weight(1.5f),
-                        onClick = {
-                            if (onClickSend == null) {
-                                Toast.makeText(
-                                    context,
-                                    "onClickSend should be implemented",
-                                    Toast.LENGTH_LONG
-                                ).show()
-                            } else {
-                                onClickSend.invoke(textFieldValue)
-                            }
-                            textFieldValue = String.empty()
-                        }
-                    ) {
-                        Icon(
-                            imageVector = ImageVector.vectorResource(id = R.drawable.ic_send),
-                            contentDescription = null,
-                            tint = sendIconState
-                        )
-                    }
-                    colorResource(R.color.grey)
-                }
+                iconState = R.color.c_2ba6ff
             }
-
-            Row(
+            Box(
+                contentAlignment = Alignment.Center,
                 modifier = Modifier
-                    .padding(start = dimensionResource(id = R.dimen.spacing_20), bottom = dimensionResource(
-                        id = R.dimen.spacing_00
-                    )),
-                horizontalArrangement = Arrangement.SpaceEvenly
+                    .clip(shape = CircleShape)
+                    .background(color = colorResource(id = iconState))
             ) {
-
-                if (true) {
-                    when (flexType.first) {
-                        FlexType.GALLERY -> {
-                            SourceImage(context = context,
-                                icon = R.drawable.ic_gallery,
-                                isDenied = isGalleryPermissionPermanentlyDenied,
-                                permission = Manifest.permission.READ_EXTERNAL_STORAGE,
-                                onClickIcon = {
-                                    galleryPermissionState.launchPermissionRequest()
-                                })
-                        }
-
-                        FlexType.LOCATION -> {
-                            SourceImage(context = context,
-                                icon = R.drawable.ic_location,
-                                isDenied = isLocationPermissionPermanentlyDenied,
-                                permission = Manifest.permission.ACCESS_FINE_LOCATION,
-                                onClickIcon = {
-                                    locationPermissionState.launchPermissionRequest()
-                                })
-                        }
-
-                        FlexType.VOICE -> {
-                            var iconState by remember {
-                                mutableStateOf(R.color.c_2ba6ff)
-                            }
-                            if (!checkPermission(context, Manifest.permission.RECORD_AUDIO)) {
-                                if (isRecordAudioPermissionPermanentlyDenied) {
-                                    iconState = R.color.c_ebeef1
-                                }
-                            } else {
-                                iconState = R.color.c_2ba6ff
-                            }
-                            Box(
-                                contentAlignment = Alignment.Center,
-                                modifier = Modifier
-                                    .clip(shape = CircleShape)
-                                    .background(color = colorResource(id = iconState))
-                            ) {
-                                Image(
-                                    imageVector = ImageVector.vectorResource(R.drawable.ic_mic),
-                                    contentDescription = null,
-                                    modifier = Modifier
-                                        .padding(dimensionResource(id = R.dimen.spacing_30))
-                                        .pointerInput(Unit) {
-                                            detectTapGestures(onPress = {
-                                                isPressed = true
-                                                if (checkPermission(
-                                                        context,
-                                                        Manifest.permission.RECORD_AUDIO
-                                                    )
-                                                ) {
-                                                    isRecordAudioPermissionPermanentlyDenied = false
-                                                    try {
-                                                        File(
-                                                            context.cacheDir,
-                                                            "audio${System.currentTimeMillis()}.mp3"
-                                                        ).also {
-                                                            Handler(Looper.getMainLooper()).postDelayed(
-                                                                {
-                                                                    if (isPressed) {
-                                                                        isRecording = true
-                                                                        recorder.start(it)
-                                                                        audioFile = it
-                                                                    }
-                                                                }, 200
-                                                            )
-                                                        }
-                                                        awaitRelease()
-                                                    } finally {
-                                                        try {
-                                                            isPressed = false
-                                                            if (isRecording) {
-                                                                recorder.stop()
-                                                                isRecording = false
-                                                                showAudioPreview = true
-                                                            }
-                                                        } catch (_: Exception) {
-                                                        }
+                Image(
+                    imageVector = ImageVector.vectorResource(R.drawable.ic_mic),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .padding(dimensionResource(id = R.dimen.spacing_30))
+                        .pointerInput(Unit) {
+                            detectTapGestures(onPress = {
+                                isPressed = true
+                                if (checkPermission(
+                                        context,
+                                        Manifest.permission.RECORD_AUDIO
+                                    )
+                                ) {
+                                    isRecordAudioPermissionPermanentlyDenied = false
+                                    try {
+                                        File(
+                                            context.cacheDir,
+                                            "audio${System.currentTimeMillis()}.mp3"
+                                        ).also {
+                                            Handler(Looper.getMainLooper()).postDelayed(
+                                                {
+                                                    if (isPressed) {
+                                                        isRecording = true
+                                                        recorder.start(it)
+                                                        audioFile = it
                                                     }
-                                                } else {
-                                                    recordAudioPermissionState.launchPermissionRequest()
-                                                }
-                                            })
+                                                }, 200
+                                            )
                                         }
-                                )
-                            }
+                                        awaitRelease()
+                                    } finally {
+                                        try {
+                                            isPressed = false
+                                            if (isRecording) {
+                                                recorder.stop()
+                                                isRecording = false
+                                                showAudioPreview = true
+                                            }
+                                        } catch (_: Exception) {
+                                        }
+                                    }
+                                } else {
+                                    recordAudioPermissionState.launchPermissionRequest()
+                                }
+                            })
                         }
-
-                        FlexType.CONTACTS -> {
-                            SourceImage(context = context,
-                                icon = R.drawable.ic_person,
-                                isDenied = isContactsPermissionPermanentlyDenied,
-                                Manifest.permission.READ_CONTACTS,
-                                onClickIcon = {
-                                    contactsPermissionState.launchPermissionRequest()
-                                })
-                        }
-                        FlexType.FILES -> {
-                            SourceImage(context = context,
-                                icon = R.drawable.ic_file,
-                                isDenied = isFilesPermissionPermanentlyDenied,
-                                Manifest.permission.READ_EXTERNAL_STORAGE,
-                                onClickIcon = {
-                                    filesPermissionState.launchPermissionRequest()
-                                })
-                        }
-                        FlexType.CAMERA -> {
-                            SourceImage(context = context,
-                                icon = R.drawable.ic_camera,
-                                isDenied = isCameraPermissionPermanentlyDenied,
-                                Manifest.permission.CAMERA, onClickIcon = {
-                                    cameraPermissionState.launchPermissionRequest()
-                                })
-                        }
-                    }
-                }
+                )
             }
+        }
+
+        FlexType.CONTACTS -> {
+            SourceImage(context = context,
+                icon = R.drawable.ic_person,
+                isDenied = isContactsPermissionPermanentlyDenied,
+                Manifest.permission.READ_CONTACTS,
+                onClickIcon = {
+                    contactsPermissionState.launchPermissionRequest()
+                })
+        }
+
+        FlexType.FILES -> {
+            Files(context = context, textFieldPlaceHolder = textFieldPlaceHolder, filesCallback = {
+                flexType.second.invoke(Callback.Files(it))
+            }, onClickSend = {
+                onClickSend?.invoke(it)
+            })
+        }
+
+        FlexType.CAMERA -> {
+            Camera(context = context, textFieldPlaceHolder = textFieldPlaceHolder, cameraCallback = {
+                flexType.second.invoke(Callback.Camera(it))
+            }, onClickSend = {
+                onClickSend?.invoke(it)
+            })
         }
     }
 }
-
 
 @Composable
 fun SourceImage(
