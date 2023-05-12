@@ -127,8 +127,13 @@ class MainActivity : ComponentActivity() {
 
             fun performChatUIOperations(uris: List<Uri>?) {
                 val currData =
-                    mutableListOf(ChatDataModel(galleryItems = GalleryItems(
-                        uris = uris?.toMutableList())))
+                    mutableListOf(
+                        ChatDataModel(
+                            galleryItems = GalleryItems(
+                                uris = uris?.toMutableList()
+                            )
+                        )
+                    )
                 chatData?.let { it1 -> currData.addAll(0, it1) }
                 chatData = currData
             }
@@ -158,7 +163,14 @@ class MainActivity : ComponentActivity() {
 
                             var mExpanded by remember { mutableStateOf(false) }
 
-                            val sources = listOf(FlexType.CAMERA, FlexType.FILES, FlexType.GALLERY, FlexType.LOCATION, FlexType.VOICE, FlexType.CONTACTS)
+                            val sources = listOf(
+                                FlexType.CAMERA,
+                                FlexType.FILES,
+                                FlexType.GALLERY,
+                                FlexType.LOCATION,
+                                FlexType.VOICE,
+                                FlexType.CONTACTS
+                            )
                             var mSelectedText by remember { mutableStateOf(FlexType.CAMERA.toString()) }
                             val icon = if (mExpanded)
                                 Icons.Filled.KeyboardArrowUp
@@ -168,10 +180,12 @@ class MainActivity : ComponentActivity() {
                             Column {
                                 Box(contentAlignment = Alignment.CenterEnd) {
                                     Row {
-                                        Text(text = mSelectedText,
+                                        Text(
+                                            text = mSelectedText,
                                             fontSize = 16.sp,
                                             maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis)
+                                            overflow = TextOverflow.Ellipsis
+                                        )
                                         Icon(icon, null,
                                             Modifier.clickable { mExpanded = !mExpanded })
                                     }
@@ -249,8 +263,10 @@ class MainActivity : ComponentActivity() {
                                                     )
                                                 ).toMutableList()
                                             chatData?.let { it3 ->
-                                                currData.addAll(currData.size - 1,
-                                                    it3)
+                                                currData.addAll(
+                                                    currData.size - 1,
+                                                    it3
+                                                )
                                             }
                                             chatData = currData
                                         }
@@ -263,8 +279,13 @@ class MainActivity : ComponentActivity() {
                                     }
                                     is Callback.Gallery -> {
                                         val currData =
-                                            mutableListOf(ChatDataModel(galleryItems = GalleryItems(
-                                                uris = callback.uris.toMutableList())))
+                                            mutableListOf(
+                                                ChatDataModel(
+                                                    galleryItems = GalleryItems(
+                                                        uris = callback.uris.toMutableList()
+                                                    )
+                                                )
+                                            )
                                         chatData?.let { it1 -> currData.addAll(0, it1) }
                                         chatData = currData
                                     }
@@ -272,6 +293,13 @@ class MainActivity : ComponentActivity() {
                                 }
                             },
                             textFieldPlaceHolder = stringResource(id = R.string.hint),
+                            onIconClicked = {
+                                Callback.Location()
+                            },
+                            inProcess = {
+                            },
+                            onSuccess = { it ->
+                            },
                         ) { it ->
                             it.let {
                                 if (it != "") {

@@ -2,9 +2,7 @@ package `in`.tilicho.flexchatbox
 
 import android.Manifest
 import android.annotation.SuppressLint
-import android.app.Activity
 import android.content.Context
-import android.graphics.Bitmap
 import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Build
@@ -13,7 +11,6 @@ import android.os.Handler
 import android.os.Looper
 import androidx.activity.compose.ManagedActivityResultLauncher
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -105,7 +102,6 @@ import `in`.tilicho.flexchatbox.utils.getContacts
 import `in`.tilicho.flexchatbox.utils.getCurrentPositionInMmSs
 import `in`.tilicho.flexchatbox.utils.getDurationInMmSs
 import `in`.tilicho.flexchatbox.utils.getGrantedPermissions
-import `in`.tilicho.flexchatbox.utils.getImageUri
 import `in`.tilicho.flexchatbox.utils.getMediaType
 import `in`.tilicho.flexchatbox.utils.getThumbnail
 import `in`.tilicho.flexchatbox.utils.navigateToAppSettings
@@ -118,10 +114,13 @@ import kotlin.time.Duration.Companion.seconds
 @SuppressLint("SuspiciousIndentation")
 @RequiresApi(Build.VERSION_CODES.Q)
 @Composable
-fun FlexChatBox(
+fun <T>FlexChatBox(
     context: Context,
     textFieldPlaceHolder: String = stringResource(id = R.string.hint),
     flexType: Pair<FlexType, ((Callback) -> Unit)>,
+    onIconClicked: ((FlexType) -> T)? = null,
+    inProcess: ((Boolean) -> Unit)? = null,
+    onSuccess: ((T) -> Unit)? = null,
     onClickSend: ((String) -> Unit)? = null
 ) {
     var galleryList by remember {
