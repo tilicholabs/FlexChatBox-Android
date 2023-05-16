@@ -40,7 +40,7 @@ In your root `build.gradle`, add `mavenCentral()` to the `allprojects` section.
 In your module `build.gradle`, add
 
     dependencies {
-        implementation 'in.tilicho:flexchatbox-android:0.0.1-alpha'
+        implementation 'in.tilicho:flexchatbox-android:0.0.2-alpha'
     }
 
 ## Usage(</>)
